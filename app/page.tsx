@@ -4,11 +4,15 @@ import { useState, useEffect } from "react"
 
 export default function Home() {
   const [accentColor, setAccentColor] = useState("hsl(282, 100%, 71%)")
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(false) // Ensure default mode is light mode
   const [displayedText, setDisplayedText] = useState("")
   const [isDeleting, setIsDeleting] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const fullText = "IN DEVELOPMENT."
+
+  useEffect(() => {
+    document.documentElement.classList.remove("dark")
+  }, [])
 
   useEffect(() => {
     if (isPaused) return
@@ -55,7 +59,11 @@ export default function Home() {
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode)
-    document.documentElement.classList.toggle("dark")
+    if (!isDarkMode) {
+      document.documentElement.classList.add("dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+    }
   }
 
   return (
@@ -128,14 +136,14 @@ export default function Home() {
         </div>
 
         {/* Contact Section */}
-        <div className="border-2 border-t-0 border-foreground bg-muted p-3 flex items-center justify-between">
+        <div className="border-2 border-t-0 border-foreground bg-muted p-3 flex items-start justify-between">
           <div>
             <div className="text-xs font-bold mb-1">CONTACT</div>
             <a href="mailto:info@pantograph.ai" className="text-sm font-bold hover:underline cursor-pointer">
               INFO@PANTOGRAPH.AI
             </a>
           </div>
-          <button onClick={randomizeAccentColor} className="text-sm font-bold hover:underline cursor-pointer">
+          <button onClick={randomizeAccentColor} className="text-sm font-bold hover:underline cursor-pointer self-end">
             PANTOGRAPH.AI
           </button>
         </div>
