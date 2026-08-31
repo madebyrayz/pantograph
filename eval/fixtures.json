@@ -1,0 +1,47 @@
+{
+  "_note": "Internal reliability instrument only — never cited as a benchmark.",
+  "fixtures": [
+    {
+      "name": "sphere-grid",
+      "prompt": "Create a 10 by 10 grid of spheres with random radii between 1 and 4",
+      "requiredOps": ["GridPoints", "Sphere"],
+      "anyOfOps": [["RandomSeries"]],
+      "nodeCount": [2, 6]
+    },
+    {
+      "name": "twist-tower",
+      "prompt": "Model a twisting tower: 30 square floors stacked, each rotated 3 degrees more than the last",
+      "requiredOps": ["StackedFrames", "Rectangle", "RotateEach"],
+      "anyOfOps": [["MathMap"]],
+      "nodeCount": [4, 8]
+    },
+    {
+      "name": "sine-field",
+      "prompt": "A 15 by 15 field of cylinders whose heights follow a sine wave across the grid",
+      "requiredOps": ["GridPoints", "Cylinder"],
+      "anyOfOps": [["SineField", "MathMap"]],
+      "nodeCount": [3, 7]
+    },
+    {
+      "name": "lofted-vase",
+      "prompt": "Loft a vase through 6 circles stacked vertically with varying radii, then cap it",
+      "requiredOps": ["Circle", "Loft"],
+      "anyOfOps": [["StackedFrames"], ["NumberList", "RandomSeries", "MathMap"]],
+      "nodeCount": [3, 7]
+    },
+    {
+      "name": "attractor-grid",
+      "prompt": "Make a 12 by 12 grid of spheres where each sphere's radius shrinks with distance from the point (30, 30)",
+      "requiredOps": ["GridPoints", "Sphere", "AttractorValues"],
+      "anyOfOps": [],
+      "nodeCount": [3, 6]
+    },
+    {
+      "name": "radial-array",
+      "prompt": "Place 24 boxes in a ring around the origin, each scaled a bit larger with its angle",
+      "requiredOps": ["RadialFrames", "Box"],
+      "anyOfOps": [["MathMap"]],
+      "nodeCount": [2, 6]
+    }
+  ]
+}

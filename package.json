@@ -9,10 +9,13 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sanity": "tsx scripts/sanity_graphs.ts",
+    "eval": "tsx eval/run.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@xyflow/react": "^12.11.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.33.0",
@@ -34,6 +37,7 @@
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }

@@ -1,0 +1,208 @@
+{
+  "_note": "Single source of truth for the parametric studies: rendered on the landing page, compiled by scripts/sanity_graphs.ts, and performed + captured by scripts/record_graph_studies.py.",
+  "studies": [
+    {
+      "key": "sphere-grid",
+      "tier": "base",
+      "label": "(A): SPHERE GRID",
+      "prompt": "A 10×10 grid of spheres with random radii.",
+      "reply": "100 spheres placed — radii randomized 1.5–4.5.",
+      "mutations": [
+        { "type": "addNode", "id": "grid", "op": "GridPoints", "params": [{ "name": "countX", "value": 10 }, { "name": "countY", "value": 10 }], "provenance": { "clause": "10×10 grid", "reason": "the point field the spheres sit on" } },
+        { "type": "addNode", "id": "radii", "op": "RandomSeries", "params": [{ "name": "count", "value": 100 }], "provenance": { "clause": "random radii", "reason": "one radius per grid point" } },
+        { "type": "addNode", "id": "spheres", "op": "Sphere", "provenance": { "clause": "grid of spheres", "reason": "the geometry itself" } },
+        { "type": "connect", "from": { "node": "grid", "port": "points" }, "to": { "node": "spheres", "port": "points" } },
+        { "type": "connect", "from": { "node": "radii", "port": "values" }, "to": { "node": "spheres", "port": "radii" }, "semantics": "radius per grid point" }
+      ]
+    },
+    {
+      "key": "twist-tower",
+      "tier": "base",
+      "label": "(B): TWISTING TOWER",
+      "prompt": "Stack 40 floors, rotating each 2.5° more.",
+      "reply": "Floor stack built and twisted per level.",
+      "mutations": [
+        { "type": "addNode", "id": "frames", "op": "StackedFrames", "params": [{ "name": "count", "value": 40 }, { "name": "rise", "value": 3.5 }], "provenance": { "clause": "40 stacked floors", "reason": "the vertical skeleton" } },
+        { "type": "addNode", "id": "floor", "op": "Rectangle", "params": [{ "name": "width", "value": 12 }, { "name": "height", "value": 12 }], "provenance": { "clause": "square floors", "reason": "the plate outline" } },
+        { "type": "addNode", "id": "twist", "op": "MathMap", "params": [{ "name": "factor", "value": 2.5 }], "provenance": { "clause": "2.5° more per level", "reason": "level index becomes twist angle" } },
+        { "type": "addNode", "id": "rotate", "op": "RotateEach", "provenance": { "clause": "rotating each", "reason": "applies the twist" } },
+        { "type": "addNode", "id": "faces", "op": "PlanarSrf", "provenance": { "clause": "floors", "reason": "solid-looking slabs" } },
+        { "type": "connect", "from": { "node": "frames", "port": "planes" }, "to": { "node": "floor", "port": "planes" } },
+        { "type": "connect", "from": { "node": "frames", "port": "levels" }, "to": { "node": "twist", "port": "values" }, "semantics": "twist grows with level" },
+        { "type": "connect", "from": { "node": "floor", "port": "curves" }, "to": { "node": "rotate", "port": "geometry" } },
+        { "type": "connect", "from": { "node": "frames", "port": "planes" }, "to": { "node": "rotate", "port": "planes" } },
+        { "type": "connect", "from": { "node": "twist", "port": "values" }, "to": { "node": "rotate", "port": "angles" } },
+        { "type": "connect", "from": { "node": "rotate", "port": "geometry" }, "to": { "node": "faces", "port": "curves" } }
+      ]
+    },
+    {
+      "key": "sine-field",
+      "tier": "base",
+      "label": "(C): SINE FIELD",
+      "prompt": "15×15 cylinders, heights following a sine wave.",
+      "reply": "225 cylinders modulated across the grid.",
+      "mutations": [
+        { "type": "addNode", "id": "grid", "op": "GridPoints", "params": [{ "name": "countX", "value": 15 }, { "name": "countY", "value": 15 }, { "name": "spacing", "value": 8 }], "provenance": { "clause": "15×15 field", "reason": "cylinder bases" } },
+        { "type": "addNode", "id": "wave", "op": "SineField", "provenance": { "clause": "heights follow a sine wave", "reason": "height per point" } },
+        { "type": "addNode", "id": "cyls", "op": "Cylinder", "params": [{ "name": "radius", "value": 2.4 }], "provenance": { "clause": "cylinders", "reason": "the geometry itself" } },
+        { "type": "connect", "from": { "node": "grid", "port": "points" }, "to": { "node": "wave", "port": "points" } },
+        { "type": "connect", "from": { "node": "grid", "port": "points" }, "to": { "node": "cyls", "port": "points" } },
+        { "type": "connect", "from": { "node": "wave", "port": "values" }, "to": { "node": "cyls", "port": "heights" }, "semantics": "wave drives height" }
+      ]
+    },
+    {
+      "key": "lofted-vase",
+      "tier": "base",
+      "label": "(D): LOFTED VASE",
+      "prompt": "Loft a vase through 6 scaled circles, then cap it.",
+      "reply": "Sections lofted and capped into a solid.",
+      "mutations": [
+        { "type": "addNode", "id": "frames", "op": "StackedFrames", "params": [{ "name": "count", "value": 6 }, { "name": "rise", "value": 8 }], "provenance": { "clause": "6 sections", "reason": "section planes" } },
+        { "type": "addNode", "id": "radii", "op": "NumberList", "params": [{ "name": "values", "value": [10, 14, 8, 5, 9, 7] }], "provenance": { "clause": "varying radii", "reason": "the vase profile" } },
+        { "type": "addNode", "id": "sections", "op": "Circle", "provenance": { "clause": "circles", "reason": "loft sections" } },
+        { "type": "addNode", "id": "loft", "op": "Loft", "params": [{ "name": "cap", "value": true }], "provenance": { "clause": "loft, then cap", "reason": "the closed body" } },
+        { "type": "connect", "from": { "node": "frames", "port": "planes" }, "to": { "node": "sections", "port": "planes" } },
+        { "type": "connect", "from": { "node": "radii", "port": "values" }, "to": { "node": "sections", "port": "radii" } },
+        { "type": "connect", "from": { "node": "sections", "port": "curves" }, "to": { "node": "loft", "port": "curves" } }
+      ]
+    },
+    {
+      "key": "attractor-grid",
+      "tier": "base",
+      "label": "(E): ATTRACTOR GRID",
+      "prompt": "12×12 spheres, radius decaying with distance to a point.",
+      "reply": "Field generated — radii mapped to attractor distance.",
+      "mutations": [
+        { "type": "addNode", "id": "grid", "op": "GridPoints", "params": [{ "name": "countX", "value": 12 }, { "name": "countY", "value": 12 }], "provenance": { "clause": "12×12 grid", "reason": "sphere centers" } },
+        { "type": "addNode", "id": "attract", "op": "AttractorValues", "provenance": { "clause": "radius decays with distance", "reason": "radius per point" } },
+        { "type": "addNode", "id": "spheres", "op": "Sphere", "provenance": { "clause": "spheres", "reason": "the geometry itself" } },
+        { "type": "connect", "from": { "node": "grid", "port": "points" }, "to": { "node": "attract", "port": "points" } },
+        { "type": "connect", "from": { "node": "grid", "port": "points" }, "to": { "node": "spheres", "port": "points" } },
+        { "type": "connect", "from": { "node": "attract", "port": "values" }, "to": { "node": "spheres", "port": "radii" }, "semantics": "attractor drives radius" }
+      ]
+    },
+    {
+      "key": "radial-array",
+      "tier": "base",
+      "label": "(F): RADIAL ARRAY",
+      "prompt": "24 boxes in a ring, scaled up with angle.",
+      "reply": "Radial array placed with angular scaling.",
+      "mutations": [
+        { "type": "addNode", "id": "ring", "op": "RadialFrames", "params": [{ "name": "count", "value": 24 }, { "name": "radius", "value": 60 }], "provenance": { "clause": "24 in a ring", "reason": "placement frames" } },
+        { "type": "addNode", "id": "grow", "op": "MathMap", "params": [{ "name": "factor", "value": 0.003 }, { "name": "offset", "value": 1 }], "provenance": { "clause": "scaled up with angle", "reason": "angle becomes scale" } },
+        { "type": "addNode", "id": "boxes", "op": "Box", "provenance": { "clause": "boxes", "reason": "the geometry itself" } },
+        { "type": "connect", "from": { "node": "ring", "port": "planes" }, "to": { "node": "boxes", "port": "planes" } },
+        { "type": "connect", "from": { "node": "ring", "port": "angles" }, "to": { "node": "grow", "port": "values" } },
+        { "type": "connect", "from": { "node": "grow", "port": "values" }, "to": { "node": "boxes", "port": "scales" }, "semantics": "angle drives scale" }
+      ]
+    },
+    {
+      "key": "tapered-twist-skin",
+      "tier": "complex",
+      "label": "(G): TAPERED TWIST SKIN",
+      "prompt": "Loft a continuous skin over 50 floor profiles that twist 3.2° per level and taper toward the top.",
+      "reply": "One surface carries both moves — twist and taper compound through the same stack.",
+      "mutations": [
+        { "type": "addNode", "id": "frames", "op": "StackedFrames", "params": [{ "name": "count", "value": 50 }, { "name": "rise", "value": 2.2 }], "provenance": { "clause": "50 floor profiles", "reason": "the vertical skeleton" } },
+        { "type": "addNode", "id": "plate", "op": "Rectangle", "params": [{ "name": "width", "value": 20 }, { "name": "height", "value": 20 }], "provenance": { "clause": "floor profiles", "reason": "the section curve" } },
+        { "type": "addNode", "id": "twist", "op": "MathMap", "params": [{ "name": "factor", "value": 3.2 }], "provenance": { "clause": "twist 3.2° per level", "reason": "level index becomes rotation" } },
+        { "type": "addNode", "id": "turn", "op": "RotateEach", "provenance": { "clause": "twist", "reason": "applies the rotation" } },
+        { "type": "addNode", "id": "taper", "op": "MathMap", "params": [{ "name": "factor", "value": -0.012 }, { "name": "offset", "value": 1 }], "provenance": { "clause": "taper toward the top", "reason": "level index becomes shrink factor" } },
+        { "type": "addNode", "id": "shrink", "op": "ScaleEach", "provenance": { "clause": "taper", "reason": "applies the shrink about each plane" } },
+        { "type": "addNode", "id": "skin", "op": "Loft", "params": [{ "name": "cap", "value": true }], "provenance": { "clause": "loft a continuous skin", "reason": "one surface through all sections" } },
+        { "type": "connect", "from": { "node": "frames", "port": "planes" }, "to": { "node": "plate", "port": "planes" } },
+        { "type": "connect", "from": { "node": "frames", "port": "levels" }, "to": { "node": "twist", "port": "values" }, "semantics": "twist grows with level" },
+        { "type": "connect", "from": { "node": "plate", "port": "curves" }, "to": { "node": "turn", "port": "geometry" } },
+        { "type": "connect", "from": { "node": "frames", "port": "planes" }, "to": { "node": "turn", "port": "planes" } },
+        { "type": "connect", "from": { "node": "twist", "port": "values" }, "to": { "node": "turn", "port": "angles" } },
+        { "type": "connect", "from": { "node": "frames", "port": "levels" }, "to": { "node": "taper", "port": "values" }, "semantics": "shrink grows with level" },
+        { "type": "connect", "from": { "node": "turn", "port": "geometry" }, "to": { "node": "shrink", "port": "geometry" } },
+        { "type": "connect", "from": { "node": "frames", "port": "planes" }, "to": { "node": "shrink", "port": "planes" } },
+        { "type": "connect", "from": { "node": "taper", "port": "values" }, "to": { "node": "shrink", "port": "factors" } },
+        { "type": "connect", "from": { "node": "shrink", "port": "geometry" }, "to": { "node": "skin", "port": "curves" } }
+      ]
+    },
+    {
+      "key": "phyllotaxis-field",
+      "tier": "complex",
+      "label": "(H): PHYLLOTAXIS FIELD",
+      "prompt": "Scatter 350 spheres in a golden-angle phyllotaxis spiral, growing with their index.",
+      "reply": "Sunflower spiral placed — 137.5° divergence, radii mapped to index.",
+      "mutations": [
+        { "type": "addNode", "id": "phyllo", "op": "PhyllotaxisPoints", "params": [{ "name": "count", "value": 350 }, { "name": "spacing", "value": 2.2 }], "provenance": { "clause": "golden-angle phyllotaxis spiral", "reason": "the point pattern" } },
+        { "type": "addNode", "id": "grow", "op": "MathMap", "params": [{ "name": "factor", "value": 0.006 }, { "name": "offset", "value": 0.8 }], "provenance": { "clause": "growing with their index", "reason": "index becomes radius" } },
+        { "type": "addNode", "id": "seeds", "op": "Sphere", "provenance": { "clause": "350 spheres", "reason": "the geometry itself" } },
+        { "type": "connect", "from": { "node": "phyllo", "port": "points" }, "to": { "node": "seeds", "port": "points" } },
+        { "type": "connect", "from": { "node": "phyllo", "port": "indices" }, "to": { "node": "grow", "port": "values" }, "semantics": "outer seeds grow larger" },
+        { "type": "connect", "from": { "node": "grow", "port": "values" }, "to": { "node": "seeds", "port": "radii" } }
+      ]
+    },
+    {
+      "key": "helix-stair",
+      "tier": "complex",
+      "label": "(I): HELIX STAIR",
+      "prompt": "A spiral staircase: 36 treads winding up around a central core.",
+      "reply": "Treads swept up the helix; core column holds the center.",
+      "mutations": [
+        { "type": "addNode", "id": "helix", "op": "HelixFrames", "params": [{ "name": "count", "value": 36 }, { "name": "radius", "value": 14 }, { "name": "rise", "value": 0.95 }, { "name": "anglePerStep", "value": 11 }], "provenance": { "clause": "36 treads winding up", "reason": "one frame per tread" } },
+        { "type": "addNode", "id": "treads", "op": "Box", "params": [{ "name": "width", "value": 10 }, { "name": "depth", "value": 3.4 }, { "name": "height", "value": 0.55 }], "provenance": { "clause": "treads", "reason": "the steps themselves" } },
+        { "type": "addNode", "id": "origin", "op": "GridPoints", "params": [{ "name": "countX", "value": 1 }, { "name": "countY", "value": 1 }], "provenance": { "clause": "central core", "reason": "the core's base point" } },
+        { "type": "addNode", "id": "core", "op": "Cylinder", "params": [{ "name": "radius", "value": 2.6 }, { "name": "height", "value": 36 }], "provenance": { "clause": "central core", "reason": "the column the stair winds around" } },
+        { "type": "connect", "from": { "node": "helix", "port": "planes" }, "to": { "node": "treads", "port": "planes" }, "semantics": "each tread rides its frame" },
+        { "type": "connect", "from": { "node": "origin", "port": "points" }, "to": { "node": "core", "port": "points" } }
+      ]
+    },
+    {
+      "key": "attractor-facade",
+      "tier": "complex",
+      "label": "(J): ATTRACTOR FACADE",
+      "prompt": "160 facade panels that rotate open as they approach an attractor point.",
+      "reply": "Panel field generated — rotation driven by attractor distance.",
+      "mutations": [
+        { "type": "addNode", "id": "grid", "op": "GridPoints", "params": [{ "name": "countX", "value": 16 }, { "name": "countY", "value": 10 }, { "name": "spacing", "value": 6 }], "provenance": { "clause": "160 facade panels", "reason": "panel centers" } },
+        { "type": "addNode", "id": "cells", "op": "PointsToPlanes", "provenance": { "clause": "panels", "reason": "a frame per panel" } },
+        { "type": "addNode", "id": "panels", "op": "Rectangle", "params": [{ "name": "width", "value": 4.6 }, { "name": "height", "value": 4.6 }], "provenance": { "clause": "panels", "reason": "the panel outline" } },
+        { "type": "addNode", "id": "pull", "op": "AttractorValues", "params": [{ "name": "attractorX", "value": 45 }, { "name": "attractorY", "value": 27 }, { "name": "max", "value": 80 }, { "name": "min", "value": 0 }, { "name": "falloff", "value": 0.9 }], "provenance": { "clause": "approach an attractor point", "reason": "rotation per panel, by distance" } },
+        { "type": "addNode", "id": "spin", "op": "RotateEach", "provenance": { "clause": "rotate open", "reason": "applies the rotation" } },
+        { "type": "connect", "from": { "node": "grid", "port": "points" }, "to": { "node": "cells", "port": "points" } },
+        { "type": "connect", "from": { "node": "cells", "port": "planes" }, "to": { "node": "panels", "port": "planes" } },
+        { "type": "connect", "from": { "node": "grid", "port": "points" }, "to": { "node": "pull", "port": "points" } },
+        { "type": "connect", "from": { "node": "panels", "port": "curves" }, "to": { "node": "spin", "port": "geometry" } },
+        { "type": "connect", "from": { "node": "cells", "port": "planes" }, "to": { "node": "spin", "port": "planes" } },
+        { "type": "connect", "from": { "node": "pull", "port": "values" }, "to": { "node": "spin", "port": "angles" }, "semantics": "closer panels rotate further" }
+      ]
+    },
+    {
+      "key": "wave-loft-tower",
+      "tier": "complex",
+      "label": "(K): WAVE LOFT TOWER",
+      "prompt": "A tower lofted through 26 rings whose radii follow a sine wave.",
+      "reply": "Profile modulated and lofted into one undulating surface.",
+      "mutations": [
+        { "type": "addNode", "id": "frames", "op": "StackedFrames", "params": [{ "name": "count", "value": 26 }, { "name": "rise", "value": 4 }], "provenance": { "clause": "26 rings", "reason": "section planes" } },
+        { "type": "addNode", "id": "wave", "op": "SineMap", "params": [{ "name": "base", "value": 12 }, { "name": "amplitude", "value": 5 }, { "name": "frequency", "value": 0.55 }], "provenance": { "clause": "radii follow a sine wave", "reason": "level index becomes ring radius" } },
+        { "type": "addNode", "id": "rings", "op": "Circle", "provenance": { "clause": "rings", "reason": "loft sections" } },
+        { "type": "addNode", "id": "skin", "op": "Loft", "params": [{ "name": "cap", "value": true }], "provenance": { "clause": "lofted", "reason": "one continuous surface" } },
+        { "type": "connect", "from": { "node": "frames", "port": "planes" }, "to": { "node": "rings", "port": "planes" } },
+        { "type": "connect", "from": { "node": "frames", "port": "levels" }, "to": { "node": "wave", "port": "values" }, "semantics": "wave runs up the levels" },
+        { "type": "connect", "from": { "node": "wave", "port": "values" }, "to": { "node": "rings", "port": "radii" } },
+        { "type": "connect", "from": { "node": "rings", "port": "curves" }, "to": { "node": "skin", "port": "curves" } }
+      ]
+    },
+    {
+      "key": "double-helix",
+      "tier": "complex",
+      "label": "(L): DOUBLE HELIX",
+      "prompt": "Two helices of spheres, phase-offset 180°, like a double helix.",
+      "reply": "Both strands wound — same parameters, opposite phase.",
+      "mutations": [
+        { "type": "addNode", "id": "strandA", "op": "HelixFrames", "params": [{ "name": "count", "value": 70 }, { "name": "radius", "value": 9 }, { "name": "rise", "value": 1.1 }, { "name": "anglePerStep", "value": 12 }, { "name": "phase", "value": 0 }], "provenance": { "clause": "two helices", "reason": "the first strand" } },
+        { "type": "addNode", "id": "strandB", "op": "HelixFrames", "params": [{ "name": "count", "value": 70 }, { "name": "radius", "value": 9 }, { "name": "rise", "value": 1.1 }, { "name": "anglePerStep", "value": 12 }, { "name": "phase", "value": 180 }], "provenance": { "clause": "phase-offset 180°", "reason": "the mirrored strand" } },
+        { "type": "addNode", "id": "ballsA", "op": "Sphere", "params": [{ "name": "radius", "value": 1.6 }], "provenance": { "clause": "helices of spheres", "reason": "strand A geometry" } },
+        { "type": "addNode", "id": "ballsB", "op": "Sphere", "params": [{ "name": "radius", "value": 1.6 }], "provenance": { "clause": "helices of spheres", "reason": "strand B geometry" } },
+        { "type": "connect", "from": { "node": "strandA", "port": "points" }, "to": { "node": "ballsA", "port": "points" } },
+        { "type": "connect", "from": { "node": "strandB", "port": "points" }, "to": { "node": "ballsB", "port": "points" } }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use or discuss this prototype, please cite it as below."
+title: "Pantograph: An Agentic CAD System That Writes Definitions, Not Objects"
+type: software
+authors:
+  - family-names: Zhang
+    given-names: Ray
+    website: "https://rayzlz.com"
+year: 2026
+url: "https://www.pantograph.ai"
+repository-code: "https://github.com/madebyrayz/Pantograph"
+license: Apache-2.0
+abstract: >-
+  A research prototype of agentic CAD: natural language is translated into
+  an editable parametric definition graph — nodes, parameters, edges, and
+  provenance — that is performed into Rhino geometry and remains open to
+  human revision. The editability of the produced definition is the thesis,
+  not a feature.

@@ -34,3 +34,11 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pantograph
+.env*
+!.env.example
+.pantograph/
+scripts/.gif_frames/
+__pycache__/
+.venv/
