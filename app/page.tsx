@@ -35,7 +35,7 @@ export default function Landing() {
 
       <div className="mx-auto flex max-w-[1100px] flex-col gap-14 px-4 pb-20 sm:gap-20 sm:px-8">
         {/* 01 PREMISE */}
-        <section id="premise" className="border-2 border-border">
+        <section id="premise" className="reveal border-2 border-border">
           <SectionBand n="01" title="PREMISE" />
           <div className="grid grid-cols-1 lg:grid-cols-2">
             <div className="border-b-2 border-border p-4 lg:border-b-0 lg:border-r-2">
@@ -64,31 +64,31 @@ export default function Landing() {
         </section>
 
         {/* 02 METHOD */}
-        <section className="border-2 border-border">
+        <section className="reveal border-2 border-border">
           <SectionBand n="02" title="METHOD" />
           <Method />
         </section>
 
         {/* 03 DEMO */}
-        <section id="demo" className="border-2 border-border">
+        <section id="demo" className="reveal border-2 border-border">
           <SectionBand n="03" title="DEMO" />
           <LiveDemo />
         </section>
 
         {/* 04 STUDIES */}
-        <section className="border-2 border-border">
+        <section className="reveal border-2 border-border">
           <SectionBand n="04" title="PARAMETRIC STUDIES" />
           <Studies />
         </section>
 
         {/* 05 RESEARCH */}
-        <section id="research" className="border-2 border-border">
+        <section id="research" className="reveal border-2 border-border">
           <SectionBand n="05" title="RESEARCH" />
           <Research markdown={paper} />
         </section>
 
         {/* footer */}
-        <footer className="border-2 border-border">
+        <footer className="reveal border-2 border-border">
           <div className="flex flex-col gap-2 bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
             <a
               href="mailto:info@pantograph.ai"

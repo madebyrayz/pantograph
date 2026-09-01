@@ -253,7 +253,7 @@ export function GraphPanel({
     const t = setInterval(() => fetchGraph(), 2500)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchGraph, refreshKey, staticMode])
+  }, [fetchGraph, refreshKey, staticMode, staticGraph])
 
   /* ── canvas interactions ───────────────────────────────────── */
 
@@ -533,7 +533,7 @@ function PantographNode({ id, data, selected }: NodeProps<FlowNode<PanelData>>) 
   const numberParams = gnode.params.filter((p) => typeof p.value === "number")
 
   return (
-    <div className="h-full min-h-full w-full border-2 border-border bg-background font-sans">
+    <div className="h-full min-h-full w-full animate-[fadeup_.4s_ease-out] border-2 border-border bg-background font-sans">
       <NodeResizer
         isVisible={selected}
         minWidth={200}

@@ -36,8 +36,8 @@ Most systems that turn language into 3D return a finished thing: a mesh, a rende
 Requirements: Node 20+, pnpm, Python 3, Rhino 8, and the [claude](https://claude.com/claude-code) CLI (logged in — the agent runs on your Claude subscription; no API keys are stored in this repo).
 
 ```bash
-git clone https://github.com/madebyrayz/pantograph-iad.git
-cd pantograph-iad
+git clone https://github.com/madebyrayz/pantograph.git
+cd pantograph
 pnpm install
 pnpm dev
 ```

@@ -4,12 +4,13 @@ import * as React from "react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
 
-import demoDefinition from "@/lib/graph/demo-definition.json"
 import studiesData from "@/lib/graph/studies.json"
+import { emptyGraph, type DefinitionGraph } from "@/lib/graph/schema"
+import { applyMutation, describeMutation, type Mutation } from "@/lib/graph/mutate"
 import { GraphPanel, type ChangeEntry } from "@/components/workspace/graph-panel"
 import { cn } from "@/lib/utils"
 
-const REPO_URL = "https://github.com/madebyrayz/pantograph-iad"
+const REPO_URL = "https://github.com/madebyrayz/pantograph"
 
 /**
  * The Pantograph workspace: conversation → definition graph → live Rhino.
@@ -71,10 +72,14 @@ export default function Workspace() {
   const [guide, setGuide] = React.useState(false)
   const [hosted, setHosted] = React.useState(false)
   const [popup, setPopup] = React.useState(false)
+  const [hostedChat, setHostedChat] = React.useState<PreviewStep[]>([])
+  const [hostedGraph, setHostedGraph] = React.useState<DefinitionGraph | null>(null)
+  const showGraphRef = React.useRef<DefinitionGraph | null>(null)
 
   /* hosted preview (pantograph.ai / vercel): agent + Rhino live on the
-     designer's machine — the workspace becomes an automated preview and
-     any real interaction explains how to run it locally */
+     designer's machine — the workspace performs a looping show of a real
+     session instead: the conversation types, nodes drop onto the canvas,
+     wires connect, the log grows, the viewport appears */
   React.useEffect(() => {
     const h = window.location.hostname
     const isHosted =
@@ -82,10 +87,90 @@ export default function Workspace() {
       h.endsWith("vercel.app") ||
       new URLSearchParams(window.location.search).has("hosted")
     setHosted(isHosted)
-    if (isHosted) {
-      setLog(demoDefinition.log as ChangeEntry[])
-      setCaptures([{ url: "/landing/demo-session.gif", time: "PREVIEW LOOP" }])
-      setModel("runs on your machine")
+    if (!isHosted) return
+
+    setModel("runs on your machine")
+    const tower = (studiesData.studies as { key: string; prompt: string; mutations: unknown[] }[])
+      .find((s) => s.key === "tapered-twist-skin")!
+    const mutations = tower.mutations as Mutation[]
+
+    let cancelled = false
+    const timeouts: ReturnType<typeof setTimeout>[] = []
+    const later = (ms: number, fn: () => void) => {
+      const t = setTimeout(() => {
+        if (!cancelled) fn()
+      }, ms)
+      timeouts.push(t)
+    }
+    const say = (step: PreviewStep) => setHostedChat((c) => [...c, step])
+
+    const runShow = () => {
+      const g = emptyGraph("show", "preview")
+      showGraphRef.current = g
+      setHostedGraph(structuredClone(g))
+      setHostedChat([])
+      setLog([])
+      setCaptures([])
+
+      let t = 900
+      later(t, () => say({ kind: "user", text: tower.prompt }))
+      t += 1300
+      later(t, () =>
+        say({
+          kind: "agent",
+          text: "I'll author this as a definition — frames, twist, taper, then one lofted skin.",
+        })
+      )
+      t += 1000
+
+      let addChip = false
+      let wireChip = false
+      for (const m of mutations) {
+        if (m.type === "addNode" && !addChip) {
+          addChip = true
+          later(t, () => say({ kind: "tool", name: "graph_add_node" }))
+        }
+        if (m.type === "connect" && !wireChip) {
+          wireChip = true
+          later(t, () => say({ kind: "tool", name: "graph_connect" }))
+        }
+        later(t, () => {
+          const live = showGraphRef.current
+          if (!live) return
+          const r = applyMutation(live, m)
+          if (!r.ok) return
+          setHostedGraph(structuredClone(live))
+          setLog((l) => [
+            ...l,
+            {
+              version: r.version,
+              time: new Date().toISOString(),
+              source: "agent",
+              summary: describeMutation(m),
+            },
+          ])
+        })
+        t += 650
+      }
+
+      later(t, () => say({ kind: "tool", name: "graph_execute" }))
+      t += 1100
+      later(t, () => setCaptures([{ url: "/landing/demo-session.gif", time: "PREVIEW" }]))
+      t += 900
+      later(t, () =>
+        say({
+          kind: "agent",
+          text: "Done — a 7-node definition, performed in Rhino. On a real install you'd drag the twist slider and the whole skin re-forms.",
+        })
+      )
+      t += 9000
+      later(t, runShow)
+    }
+
+    runShow()
+    return () => {
+      cancelled = true
+      timeouts.forEach(clearTimeout)
     }
   }, [])
 
@@ -374,7 +459,7 @@ export default function Workspace() {
             HOSTED PREVIEW — THE AGENT AND RHINO RUN ON YOUR OWN MACHINE
           </span>
           <a
-            href="https://github.com/madebyrayz/pantograph-iad"
+            href="https://github.com/madebyrayz/pantograph"
             target="_blank"
             rel="noreferrer"
             className="shrink-0 text-[10px] font-bold tracking-widest text-black underline underline-offset-2 hover:opacity-60"
@@ -402,7 +487,7 @@ export default function Workspace() {
             className="flex-1 overflow-y-auto p-3"
           >
             {hosted ? (
-              <AutoPreview />
+              <AutoPreview steps={hostedChat} />
             ) : items.length === 0 ? (
               <Welcome onPick={send} />
             ) : (
@@ -471,7 +556,7 @@ export default function Workspace() {
               refreshKey={graphRefresh}
               onCaptured={addCapture}
               onLog={hosted ? undefined : setLog}
-              staticGraph={hosted ? demoDefinition.graph : undefined}
+              staticGraph={hosted ? (hostedGraph ?? emptyGraph("show")) : undefined}
               onBlocked={() => setPopup(true)}
             />
           </div>
@@ -570,56 +655,28 @@ type PreviewStep =
   | { kind: "agent"; text: string }
   | { kind: "tool"; name: string }
 
-const PREVIEW_SCRIPTS: PreviewStep[][] = [
-  [
-    { kind: "user", text: "Loft a continuous skin over 50 floor profiles that twist and taper toward the top." },
-    { kind: "agent", text: "I'll author this as a definition — frames, twist, taper, then one lofted skin." },
-    { kind: "tool", name: "graph_add_node" },
-    { kind: "tool", name: "graph_connect" },
-    { kind: "tool", name: "graph_execute" },
-    { kind: "agent", text: "Done — a 7-node definition. The twist parameter drives the whole skin; the sweep runs live in the viewport panel." },
-  ],
-  [
-    { kind: "user", text: "Make the twist stronger and taper less." },
-    { kind: "tool", name: "graph_set_param" },
-    { kind: "tool", name: "graph_set_param" },
-    { kind: "tool", name: "graph_execute" },
-    { kind: "agent", text: "Twist raised to 5° per level, taper eased. Same definition, re-performed — nothing was regenerated from scratch." },
-  ],
-]
-
-function AutoPreview() {
-  const [scriptIdx, setScriptIdx] = React.useState(0)
-  const [count, setCount] = React.useState(0)
-  const script = PREVIEW_SCRIPTS[scriptIdx]
-
+function AutoPreview({ steps }: { steps: PreviewStep[] }) {
+  const endRef = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
-    const t = setTimeout(() => {
-      if (count < script.length) setCount((c) => c + 1)
-      else {
-        setScriptIdx((i) => (i + 1) % PREVIEW_SCRIPTS.length)
-        setCount(0)
-      }
-    }, count === 0 ? 1200 : count >= script.length ? 4000 : 1100)
-    return () => clearTimeout(t)
-  }, [count, script.length])
+    endRef.current?.scrollIntoView({ block: "nearest" })
+  }, [steps.length])
 
   return (
     <div className="flex flex-col gap-2.5">
       <div className="border-2 border-border bg-secondary/30 px-2.5 py-1.5 text-[9px] font-bold tracking-widest opacity-70">
-        AUTOMATED PREVIEW — A RECORDED SESSION REPLAYS BELOW. RUN IT FOR REAL
-        ON YOUR OWN MACHINE.
+        AUTOMATED PREVIEW — A RECORDED SESSION REPLAYS ACROSS THE WHOLE
+        WORKSPACE. RUN IT FOR REAL ON YOUR OWN MACHINE.
       </div>
-      {script.slice(0, count).map((step, i) => {
+      {steps.map((step, i) => {
         if (step.kind === "user")
           return (
-            <div key={`${scriptIdx}-${i}`} className="ml-auto max-w-[88%] animate-[fadeup_.35s_ease-out] border-2 border-border bg-foreground px-2.5 py-1.5 text-[12px] font-semibold text-background">
+            <div key={i} className="ml-auto max-w-[88%] animate-[fadeup_.35s_ease-out] border-2 border-border bg-foreground px-2.5 py-1.5 text-[12px] font-semibold text-background">
               {step.text}
             </div>
           )
         if (step.kind === "agent")
           return (
-            <div key={`${scriptIdx}-${i}`} className="max-w-[92%] animate-[fadeup_.35s_ease-out] text-[12px] font-medium leading-relaxed">
+            <div key={i} className="max-w-[92%] animate-[fadeup_.35s_ease-out] text-[12px] font-medium leading-relaxed">
               <span className="mr-1.5 bg-accent px-1 text-[9px] font-bold tracking-wider text-black">
                 AGENT
               </span>
@@ -627,18 +684,17 @@ function AutoPreview() {
             </div>
           )
         return (
-          <div key={`${scriptIdx}-${i}`} className="flex w-fit animate-[fadeup_.35s_ease-out] items-center gap-2 border-2 border-border bg-background px-2 py-1 font-mono text-[10px] font-bold">
+          <div key={i} className="flex w-fit animate-[fadeup_.35s_ease-out] items-center gap-2 border-2 border-border bg-background px-2 py-1 font-mono text-[10px] font-bold">
             ⌁ {step.name.toUpperCase()}
             <span className="bg-foreground px-1 text-[8px] text-background">OK</span>
           </div>
         )
       })}
-      {count < script.length && (
-        <div className="text-[9px] font-bold tracking-widest opacity-40">
-          <span className="inline-block h-3 w-2 animate-blink bg-foreground align-middle" />{" "}
-          REPLAYING
-        </div>
-      )}
+      <div className="text-[9px] font-bold tracking-widest opacity-40">
+        <span className="inline-block h-3 w-2 animate-blink bg-foreground align-middle" />{" "}
+        REPLAYING
+      </div>
+      <div ref={endRef} />
     </div>
   )
 }

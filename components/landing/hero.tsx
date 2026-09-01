@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useTheme } from "next-themes"
 
 /**
- * Hero — ported from the original pantograph.ai (madebyrayz/pantograph-iad)
+ * Hero — ported from the original pantograph.ai (madebyrayz/pantograph)
  * and extended: byline link, multi-phrase typing status, section links.
  * Typing effect, breathing dots, dark toggle, and the accent-color
  * randomizer are preserved from the original.
@@ -145,18 +145,20 @@ export function Hero() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <a
-                href="#demo"
-                className="border-2 border-border px-3 py-2 text-xs font-bold tracking-wider transition-colors hover:bg-foreground hover:text-background"
-              >
-                DEMO ↓
-              </a>
               <Link
                 href="/demo"
-                className="border-2 border-border bg-foreground px-3 py-2 text-xs font-bold tracking-wider text-background"
+                className="border-2 border-border bg-foreground px-3 py-2 text-xs font-bold tracking-wider text-background transition-colors hover:bg-accent hover:text-black"
               >
-                WORKSPACE →
+                WORKSPACE ↗
               </Link>
+              <a
+                href="https://github.com/madebyrayz/pantograph"
+                target="_blank"
+                rel="noreferrer"
+                className="border-2 border-border px-3 py-2 text-xs font-bold tracking-wider transition-colors hover:bg-foreground hover:text-background"
+              >
+                GITHUB ↗
+              </a>
               <button
                 onClick={toggleDark}
                 className="size-3 animate-blink cursor-pointer rounded-full bg-foreground transition-transform hover:scale-110"
@@ -183,9 +185,26 @@ export function Hero() {
         </div>
       </div>
 
-      <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[11px] font-bold tracking-widest opacity-40">
-        SCROLL ↓
-      </span>
+      <ScrollCue />
     </section>
+  )
+}
+
+/** Scroll cue in the STATUS register: typed out, full black, clickable. */
+function ScrollCue() {
+  const typed = useTypewriter(["SCROLL ↓"])
+  return (
+    <button
+      onClick={() =>
+        document.getElementById("premise")?.scrollIntoView({ behavior: "smooth" })
+      }
+      className="absolute bottom-4 left-1/2 flex -translate-x-1/2 cursor-pointer items-center text-foreground transition-transform hover:translate-y-0.5"
+      aria-label="Scroll to the first section"
+    >
+      <span className="truncate text-xl font-bold leading-none tracking-tight">
+        {typed}
+      </span>
+      <span className="ml-1 inline-block h-6 w-0.5 animate-blink bg-foreground" />
+    </button>
   )
 }

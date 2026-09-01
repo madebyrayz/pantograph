@@ -14,8 +14,6 @@ I named the system described in this paper after the linkage, not the camera, be
 
 The paper makes one claim from several directions. The claim is that the value of a machine that assists design lies not in the artifact it delivers but in the structure it leaves behind for a person to revise, and that the choice between returning an object and returning a definition is a choice between two theories of what a design machine is for. I will call the first theory generative and the second orchestrative. I will argue that the second is the right one, that it has a long intellectual history which the current wave of generative tools has largely forgotten, and that it is at the same time a precise engineering position with a documented problem to solve. The prototype is the evidence that the position can be built. It is not evidence that the position has been fulfilled, and I will be exact about the difference.
 
-> Figure 1. Left: a generated mesh, a terminus. Right: a Pantograph definition graph, one slider mid-drag, the geometry beneath it updating.
-
 ---
 
 ## II. Two returns
@@ -44,8 +42,6 @@ Here is the loop in the prototype. The person states an intent in ordinary langu
 
 Ross Ashby's law of requisite variety gives the engineering backbone to this. Only variety can absorb variety: a regulator can only cope with as many states of its environment as it can itself distinguish and respond to. An open-ended design intent has enormous variety. A system that answers it with a fixed template, or with a single opaque form, has almost none; it can only match or fail. A system that answers with an editable graph has variety in proportion to the graph's degrees of freedom, and it exposes that variety to the person rather than exhausting it internally. Heinz von Foerster's second-order cybernetics adds the last piece. The observer is inside the system. The designer who edits the definition is not an external user operating a machine but a term in the machine's own process, and the definition is designed to be edited precisely because the designer's edits are how the system as a whole regulates itself.
 
-> Figure 2. Pask's conversation loop redrawn, with the four Pantograph steps placed on it and the definition graph marked as the shared object.
-
 ---
 
 ## IV. Score and painting
@@ -61,8 +57,6 @@ Mario Carpo has argued in *The Alphabet and the Algorithm* (2011) that this is a
 The ancestor here is Ivan Sutherland's Sketchpad of 1963, the first system in which what the person manipulated was not the drawing but the constraints that generated it. Draw two lines, declare them parallel, and thereafter the machine maintains the relation while you move either line. Sketchpad was already allographic. Everything that followed in constraint-based and parametric CAD, including Grasshopper, is downstream of it. What an agent adds is the ability to author the constraints from a description rather than by hand, one relation at a time. What Pantograph insists on is that the agent author constraints and not their consequences.
 
 I should be exact about a limit. Goodman's notation has strict requirements: its characters must be syntactically disjoint and finitely differentiated, so that any mark can be assigned to exactly one character. A Grasshopper graph with continuous-valued sliders does not meet those requirements. It is not a notation in his strict sense but something between a notation and an autographic object, a score whose marks can be varied continuously. I do not think this weakens the argument. It locates the definition in an interesting place, closer to a score with an open cadenza than to a fully specified one, and the openness is what invites the hand back.
-
-> Figure 3. A definition graph laid out as a score, with two performances beneath it: the geometry executed as written, and the geometry executed after a single value is changed.
 
 ---
 
@@ -92,8 +86,6 @@ I say partially and locally on purpose. Exposing the graph does not open the bla
 
 There is an older and more affirmative way to say the same thing. Gilbert Simondon, in *On the Mode of Existence of Technical Objects* (1958), argued that technical objects should be understood through their genesis rather than their use, and that they develop by what he called concretization, from loose assemblies of parts each serving one function toward tightly integrated objects whose parts serve several functions at once. A definition has a genesis in a way a mesh does not. It carries the record of its coming into being, and that record is exactly what makes it revisable. Across successive edits, a definition concretizes: relations tighten, a parameter that once did one thing comes to coordinate several. Simondon meant concretization as a slow evolution across lineages of objects, not a working session, and I use the term by analogy. But the analogy holds where it matters. To design, for Simondon, is to participate in the genesis of the technical object. A machine that returns a finished form removes you from that genesis. A machine that returns a definition hands you back into it.
 
-> Figure 4. A single definition node annotated with its role label and a pointer to the prompt clause that produced it.
-
 ---
 
 ## VII. Brittleness
@@ -105,8 +97,6 @@ Daniel Davis, in his 2013 dissertation *Modelled on Software Engineering*, studi
 This is the engineering crux. The expensive operation in parametric design is not changing a value but changing a structure, and an agent that can write structures can, in principle, rewrite them. If the agent produces the definition, then the definition's topology is something it can be asked to alter. The bay removed, the wall added, the structural logic swapped: these become instructions to the agent rather than reasons to start from an empty canvas. The cost of the structural change falls, and with it the pressure to freeze decisions early. Davis observed that designers commit to a model's structure before they understand the consequences of that commitment because restructuring later is too expensive. An agent that lowers the restructuring cost lets the decision be deferred until it can be made well.
 
 I want to be precise about what the prototype does and does not achieve here. Pantograph writes definitions from language and supports editing of parameters and of individual nodes. Structural re-authoring of an existing definition, changing its topology in response to an intent the original structure cannot absorb, is the target the design is aimed at and the capability I regard as the most valuable research outcome. It is partial in the prototype. It works for small definitions and simple changes and degrades as the graph grows. I state this because the argument does not depend on the capability being finished. It depends on the capability being the right thing to build, and on the observation that the philosophical claim and the engineering claim are the same claim in two registers. Editable definitions preserve authorship and referent. Editable definitions reduce brittleness. Both sentences describe one property of one object.
-
-> Figure 5. A topological change handled two ways: the manual path, in which the tangled definition is abandoned and rebuilt, and the agentic path, in which the agent rewrites the affected region of the graph.
 
 ---
 
@@ -124,10 +114,6 @@ Editability in the prototype exists at three levels, and I distinguish them beca
 
 Two limitations are worth stating plainly. The prototype depends on a running Rhino instance for execution, which constrains where it can be demonstrated; a browser-native rendering of the definition graph exists so that the structure, at least, can be seen and edited without a licence, and geometric preview outside Rhino is approximate. And the set of Grasshopper operations the agent can author is a subset of what the platform offers. It covers the core geometric and data-tree operations and does not extend into the ecosystem of community plugins. Both are engineering limits rather than conceptual ones, and I would rather name them than have them discovered.
 
-> Figure 6. System diagram: intent, plan, definition graph as the central object, geometry engine, edit surface, with feedback edges from execution back to the agent and from the person's edits back into the loop.
-
-> Figure 7. One plan, execute, verify, repair cycle as a sequence diagram.
-
 ---
 
 ## IX. Where it sits
@@ -137,8 +123,6 @@ The field has, in the last three years, arrived at the same distinction this pap
 Pantograph belongs to the second regime and to a specific corner of it. Most program-generating work targets mechanical CAD: sketches, extrusions, feature trees. Pantograph targets the visual dataflow graph of Grasshopper, which is the native parametric medium of architecture and which, unlike a linear command sequence, is already a graph a designer can see and touch. A small number of academic prototypes work in this corner, translating language into Grasshopper definitions or into Rhino geometry code. At least one commercial product does so as a paid tool with a substantial user base, writing native components directly onto the canvas, and it has established that the space is real and that practitioners will pay for it.
 
 This is why Pantograph is not a product and should not be read as one. As a product it would be behind on maturity and on reliability, and would be competing on the wrong ground. As research it offers what none of the products publish and few of the papers attempt: an explicit account of why the definition, and not the geometry, is the correct return, one that ties an engineering fact, Davis's brittleness, to a claim about notation, medium and authorship, and that treats the definition graph not as an intermediate on the way to a shape but as the first-class object and the argument itself. The contribution is the framing made executable. A researcher can evaluate that on its own terms, and can check the code against the claims.
-
-> Figure 8. The field arranged by two axes: what is returned (mesh to program to graph) and how (one shot, conversation, agent loop), with Pantograph placed in the graph and agent-loop corner among its research neighbours.
 
 ---
 
