@@ -65,6 +65,14 @@ export default function Workspace() {
   const [log, setLog] = React.useState<ChangeEntry[]>([])
   const [rhino, setRhino] = React.useState<boolean | null>(null)
   const [guide, setGuide] = React.useState(false)
+  const [hosted, setHosted] = React.useState(false)
+
+  /* hosted preview (pantograph.ai / vercel): agent + Rhino live on the
+     designer's machine, so the workspace is browsable but not runnable */
+  React.useEffect(() => {
+    const h = window.location.hostname
+    setHosted(h.endsWith("pantograph.ai") || h.endsWith("vercel.app"))
+  }, [])
 
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const stickToBottom = React.useRef(true)
@@ -338,6 +346,22 @@ export default function Workspace() {
           <ThemeDot />
         </div>
       </header>
+
+      {hosted && (
+        <div className="flex items-center justify-between gap-3 border-b-2 border-border bg-accent px-3 py-1.5">
+          <span className="text-[10px] font-bold tracking-widest text-black">
+            HOSTED PREVIEW — THE AGENT AND RHINO RUN ON YOUR OWN MACHINE
+          </span>
+          <a
+            href="https://github.com/madebyrayz/v0-pantograph"
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 text-[10px] font-bold tracking-widest text-black underline underline-offset-2 hover:opacity-60"
+          >
+            CLONE THE REPO TO RUN IT →
+          </a>
+        </div>
+      )}
 
       {/* ── three columns ───────────────────────────────────── */}
       <main className="flex min-h-0 flex-1">
