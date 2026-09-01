@@ -89,7 +89,7 @@ export function Hero() {
 
         {/* title */}
         <div className="border-2 border-t-0 border-border bg-background p-3">
-          <h1 className="text-5xl font-bold leading-none tracking-tight sm:text-7xl md:text-8xl">
+          <h1 className="text-4xl font-bold leading-none tracking-tight sm:text-5xl md:text-6xl">
             PANTOGRAPH
           </h1>
         </div>
@@ -99,7 +99,7 @@ export function Hero() {
           className="border-2 border-t-0 border-border p-3"
           style={{ backgroundColor: accent }}
         >
-          <h2 className="text-2xl font-bold leading-tight tracking-tight text-black sm:text-4xl">
+          <h2 className="text-2xl font-bold leading-tight tracking-tight text-black md:text-3xl">
             I.A.D
             <br />
             INTELLIGENCE AIDED DESIGN
@@ -108,7 +108,7 @@ export function Hero() {
 
         {/* work in progress */}
         <div className="border-2 border-t-0 border-border bg-muted p-3">
-          <p className="text-xl font-bold leading-none tracking-tight sm:text-3xl">
+          <p className="text-xl font-bold leading-none tracking-tight md:text-2xl">
             WORK IN PROGRESS
           </p>
         </div>

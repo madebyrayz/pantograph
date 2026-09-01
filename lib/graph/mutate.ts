@@ -35,6 +35,13 @@ export type Mutation =
       provenance?: Provenance
     }
   | { type: "setMeta"; title?: string; prompt?: string }
+  | {
+      /** Editor hint only — repositions a node on the canvas. Does not
+       *  version the definition and never appears in the change log. */
+      type: "moveNode"
+      id: string
+      position: { x: number; y: number }
+    }
   | { type: "clear" }
 
 export interface MutationResult {
@@ -130,6 +137,13 @@ export function applyMutation(
       if (m.prompt !== undefined) graph.meta.prompt = m.prompt
       break
     }
+    case "moveNode": {
+      const node = graph.nodes.find((n) => n.id === m.id)
+      if (!node) return reject(`no node "${m.id}"`)
+      node.position = m.position
+      // layout-only: no version bump
+      return { ok: true, issues: validate(graph), version: graph.meta.version }
+    }
     case "clear": {
       graph.nodes = []
       graph.edges = []
@@ -139,4 +153,26 @@ export function applyMutation(
 
   graph.meta.version += 1
   return { ok: true, issues: validate(graph), version: graph.meta.version }
+}
+
+/** One-line human summary of a mutation, for the change log. */
+export function describeMutation(m: Mutation): string {
+  switch (m.type) {
+    case "addNode":
+      return `added ${m.id} (${m.op})`
+    case "removeNode":
+      return `removed ${m.id}`
+    case "connect":
+      return `wired ${m.from.node}.${m.from.port} → ${m.to.node}.${m.to.port}`
+    case "disconnect":
+      return `unwired ${m.to.node}.${m.to.port}`
+    case "setParam":
+      return `set ${m.node}.${m.name} = ${JSON.stringify(m.value)}`
+    case "setMeta":
+      return m.title ? `renamed to "${m.title}"` : "updated metadata"
+    case "moveNode":
+      return `moved ${m.id}`
+    case "clear":
+      return "cleared the definition"
+  }
 }

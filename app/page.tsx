@@ -22,12 +22,12 @@ export default function Landing() {
         <section id="premise" className="border-2 border-border">
           <SectionBand n="01" title="PREMISE" />
           <div className="grid grid-cols-1 lg:grid-cols-2">
-            <div className="border-b-2 border-border p-5 lg:border-b-0 lg:border-r-2">
-              <p className="text-xl font-bold leading-snug tracking-tight sm:text-2xl">
+            <div className="border-b-2 border-border p-4 lg:border-b-0 lg:border-r-2">
+              <p className="text-base font-bold leading-snug tracking-tight sm:text-lg">
                 A PANTOGRAPH COPIES A DRAWING AND SCALES IT. THIS PROJECT ASKS:
                 CAN AN AGENT COPY DESIGN INTENT — AND SCALE IT INTO GEOMETRY?
               </p>
-              <p className="mt-5 text-[13px] font-medium leading-relaxed">
+              <p className="mt-4 text-xs font-medium leading-relaxed">
                 Pantograph is a study of agentic modeling inside CAD. A designer
                 describes what they want in plain language; an AI agent plans
                 the steps, writes real rhinoscriptsyntax, executes it in the
@@ -36,12 +36,12 @@ export default function Landing() {
                 CAD geometry, in the designer's file, on the designer's
                 machine.
               </p>
-              <p className="mt-4 text-[11px] font-bold tracking-wide opacity-60">
+              <p className="mt-3 text-[10px] font-bold tracking-wide opacity-60">
                 FILES STAY LOCAL. THE AGENT WORKS OVER A LOOPBACK BRIDGE —
                 NOTHING IS UPLOADED. THE WORKSPACE WILL BE OPEN-SOURCED.
               </p>
             </div>
-            <div className="grid place-items-center p-5">
+            <div className="grid place-items-center p-4">
               <PantographFigure className="w-full max-w-[480px]" />
             </div>
           </div>
@@ -95,10 +95,10 @@ export default function Landing() {
 function SectionBand({ n, title }: { n: string; title: string }) {
   return (
     <div className="flex items-center border-b-2 border-border bg-muted">
-      <span className="border-r-2 border-border bg-accent px-4 py-2.5 text-sm font-bold text-black">
+      <span className="border-r-2 border-border bg-accent px-3 py-2 text-xs font-bold text-black">
         {n}
       </span>
-      <span className="px-4 text-sm font-bold tracking-wide">{title}</span>
+      <span className="px-3 text-xs font-bold tracking-widest">{title}</span>
     </div>
   )
 }

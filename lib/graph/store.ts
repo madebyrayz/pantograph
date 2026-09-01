@@ -1,7 +1,8 @@
 /**
  * Server-side graph store: one current definition per session, persisted
  * as versioned JSON snapshots under .pantograph/definitions/ so the
- * genesis of a definition stays inspectable.
+ * genesis of a definition stays inspectable — plus a change log recording
+ * who (agent or designer) did what, when.
  */
 
 import fs from "fs"
@@ -10,52 +11,97 @@ import path from "path"
 import type { DefinitionGraph } from "./schema"
 import { emptyGraph } from "./schema"
 import type { Mutation, MutationResult } from "./mutate"
-import { applyMutation } from "./mutate"
+import { applyMutation, describeMutation } from "./mutate"
 
 const DIR = path.join(process.cwd(), ".pantograph", "definitions")
+const LOG_LIMIT = 200
+
+export type ChangeSource = "agent" | "designer"
+
+export interface ChangeEntry {
+  version: number
+  time: string
+  source: ChangeSource
+  summary: string
+}
 
 // Survives Next dev hot-reload by hanging off globalThis.
-const g = globalThis as unknown as { __pantographGraphs?: Map<string, DefinitionGraph> }
+const g = globalThis as unknown as {
+  __pantographGraphs?: Map<string, DefinitionGraph>
+  __pantographLogs?: Map<string, ChangeEntry[]>
+}
 const graphs = (g.__pantographGraphs ??= new Map<string, DefinitionGraph>())
+const logs = (g.__pantographLogs ??= new Map<string, ChangeEntry[]>())
 
 export function getGraph(id = "default"): DefinitionGraph {
   let graph = graphs.get(id)
   if (!graph) {
-    graph = loadLatest(id) ?? emptyGraph(id)
+    graph = loadJson<DefinitionGraph>(`${id}.json`) ?? emptyGraph(id)
     graphs.set(id, graph)
   }
   return graph
 }
 
-export function mutateGraph(id: string, mutation: Mutation): MutationResult {
+export function getLog(id = "default"): ChangeEntry[] {
+  let log = logs.get(id)
+  if (!log) {
+    log = loadJson<ChangeEntry[]>(`${id}.log.json`) ?? []
+    logs.set(id, log)
+  }
+  return log
+}
+
+export function mutateGraph(
+  id: string,
+  mutation: Mutation,
+  source: ChangeSource = "designer"
+): MutationResult {
   const graph = getGraph(id)
   const result = applyMutation(graph, mutation)
-  if (result.ok) snapshot(graph)
+  if (result.ok) {
+    if (mutation.type !== "moveNode") {
+      const log = getLog(id)
+      log.push({
+        version: result.version,
+        time: new Date().toISOString(),
+        source,
+        summary: describeMutation(mutation),
+      })
+      if (log.length > LOG_LIMIT) log.splice(0, log.length - LOG_LIMIT)
+      saveJson(`${id}.log.json`, log)
+      saveJson(`${id}.v${result.version}.json`, graph)
+      prune(id, result.version)
+    }
+    saveJson(`${id}.json`, graph)
+  }
   return result
 }
 
 export function resetGraph(id = "default"): DefinitionGraph {
   const graph = emptyGraph(id)
   graphs.set(id, graph)
-  snapshot(graph)
+  logs.set(id, [])
+  saveJson(`${id}.json`, graph)
+  saveJson(`${id}.log.json`, [])
   return graph
 }
 
-function snapshot(graph: DefinitionGraph) {
+/* ── persistence (best-effort; memory stays authoritative) ────── */
+
+function saveJson(name: string, data: unknown) {
   try {
     fs.mkdirSync(DIR, { recursive: true })
-    fs.writeFileSync(
-      path.join(DIR, `${graph.id}.json`),
-      JSON.stringify(graph, null, 2)
-    )
-    // keep a small genesis trail
-    fs.writeFileSync(
-      path.join(DIR, `${graph.id}.v${graph.meta.version}.json`),
-      JSON.stringify(graph)
-    )
-    prune(graph.id, graph.meta.version)
+    fs.writeFileSync(path.join(DIR, name), JSON.stringify(data, null, 1))
   } catch {
-    // persistence is best-effort; in-memory state remains authoritative
+    /* best effort */
+  }
+}
+
+function loadJson<T>(name: string): T | null {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(DIR, name), "utf-8")) as T
+  } catch {
+    return null
   }
 }
 
@@ -69,14 +115,5 @@ function prune(id: string, version: number, keep = 25) {
     for (const e of old) fs.unlinkSync(path.join(DIR, e.f))
   } catch {
     /* best effort */
-  }
-}
-
-function loadLatest(id: string): DefinitionGraph | null {
-  try {
-    const raw = fs.readFileSync(path.join(DIR, `${id}.json`), "utf-8")
-    return JSON.parse(raw) as DefinitionGraph
-  } catch {
-    return null
   }
 }

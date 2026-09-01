@@ -280,7 +280,8 @@ def handle_graph_tool(name, args):
         return error_content("unknown graph tool: %s" % name)
 
     status, data = http_json(
-        "POST", "/api/graph", {"session": SESSION, "mutation": mutation})
+        "POST", "/api/graph",
+        {"session": SESSION, "source": "agent", "mutation": mutation})
     if status != 200:
         return error_content("mutation failed: %s" % json.dumps(data))
     result = data["results"][-1]

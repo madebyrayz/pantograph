@@ -2,22 +2,25 @@
 
 import * as React from "react"
 import {
+  applyNodeChanges,
   Background,
   Handle,
   Position,
   ReactFlow,
+  type Connection,
   type Edge as FlowEdge,
   type Node as FlowNode,
+  type NodeChange,
   type NodeProps,
 } from "@xyflow/react"
 
 import { cn } from "@/lib/utils"
 
 /**
- * The definition-graph editor: renders the current definition as a node
- * graph and lets a human retune it. A param edit posts a narrow mutation,
- * then (debounced) re-executes the definition in Rhino — the moment the
- * whole system exists for.
+ * The definition-graph editor: the definition rendered as a live node
+ * canvas. Nodes drag (positions persist), ports connect by dragging a
+ * wire, params retune inline — and every structural edit re-performs
+ * the definition in Rhino.
  */
 
 // ── wire types (mirror lib/graph/schema; kept local to stay client-only) ──
@@ -48,6 +51,12 @@ interface Graph {
   meta: { title: string; version: number; prompt?: string }
 }
 interface Issue { level: "error" | "warning"; message: string; node?: string }
+export interface ChangeEntry {
+  version: number
+  time: string
+  source: "agent" | "designer"
+  summary: string
+}
 
 type ExecState =
   | { kind: "idle" }
@@ -58,46 +67,42 @@ type ExecState =
 
 interface PanelData extends Record<string, unknown> {
   gnode: GNode
-  inPorts: string[]
+  inPorts: { port: string; wired: boolean }[]
   outPorts: string[]
   onParam: (nodeId: string, name: string, value: number) => void
 }
 
 export function GraphPanel({
   onCaptured,
+  onLog,
   refreshKey,
 }: {
   /** called when a re-execution produced a fresh viewport capture */
   onCaptured: () => void
+  /** receives the change log on every sync */
+  onLog?: (log: ChangeEntry[]) => void
   /** bump to force an immediate refetch (e.g. when an agent turn ends) */
   refreshKey: number
 }) {
   const [graph, setGraph] = React.useState<Graph | null>(null)
   const [issues, setIssues] = React.useState<Issue[]>([])
   const [exec, setExec] = React.useState<ExecState>({ kind: "idle" })
+  const [flowNodes, setFlowNodes] = React.useState<FlowNode<PanelData>[]>([])
+  const [flowEdges, setFlowEdges] = React.useState<FlowEdge[]>([])
   const execTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const versionRef = React.useRef(-1)
+  const positionsRef = React.useRef(new Map<string, { x: number; y: number }>())
 
-  const fetchGraph = React.useCallback(async () => {
-    try {
-      const res = await fetch("/api/graph")
-      if (!res.ok) return
-      const data = (await res.json()) as { graph: Graph; issues: Issue[] }
-      if (data.graph.meta.version !== versionRef.current) {
-        versionRef.current = data.graph.meta.version
-        setGraph(data.graph)
-        setIssues(data.issues)
-      }
-    } catch {
-      /* app restarting; next poll will catch up */
-    }
-  }, [])
-
+  // keep parent callbacks in refs so our callback chain stays referentially
+  // stable — otherwise every parent render would rebuild the canvas
+  const onCapturedRef = React.useRef(onCaptured)
+  const onLogRef = React.useRef(onLog)
   React.useEffect(() => {
-    fetchGraph()
-    const t = setInterval(fetchGraph, 2500)
-    return () => clearInterval(t)
-  }, [fetchGraph, refreshKey])
+    onCapturedRef.current = onCaptured
+    onLogRef.current = onLog
+  })
+
+  /* ── execution ─────────────────────────────────────────────── */
 
   const execute = React.useCallback(async () => {
     setExec({ kind: "running" })
@@ -112,16 +117,42 @@ export function GraphPanel({
       else if (!res.ok) setExec({ kind: "error", errors: data.errors ?? ["failed"] })
       else {
         setExec({ kind: "ok", note: data.result ?? "" })
-        if (data.captured) onCaptured()
+        if (data.captured) onCapturedRef.current()
       }
     } catch {
       setExec({ kind: "error", errors: ["app unreachable"] })
     }
-  }, [onCaptured])
+  }, [])
+
+  const scheduleExecute = React.useCallback(() => {
+    if (execTimer.current) clearTimeout(execTimer.current)
+    execTimer.current = setTimeout(execute, 650)
+  }, [execute])
+
+  /* ── mutations ─────────────────────────────────────────────── */
+
+  const postMutation = React.useCallback(
+    async (mutation: Record<string, unknown>) => {
+      try {
+        const res = await fetch("/api/graph", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: "designer", mutation }),
+        })
+        return (await res.json()) as {
+          ok: boolean
+          results: { issues: Issue[]; rejected?: string }[]
+          graph: Graph
+        }
+      } catch {
+        return null
+      }
+    },
+    []
+  )
 
   const onParam = React.useCallback(
     async (nodeId: string, name: string, value: number) => {
-      // optimistic local update so the input feels immediate
       setGraph((g) => {
         if (!g) return g
         const next = structuredClone(g)
@@ -131,51 +162,113 @@ export function GraphPanel({
         if (p) p.value = value
         return next
       })
-      try {
-        const res = await fetch("/api/graph", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mutation: { type: "setParam", node: nodeId, name, value },
-          }),
-        })
-        const data = await res.json()
-        if (data.ok) {
-          versionRef.current = data.graph.meta.version
-          setIssues(data.results.at(-1)?.issues ?? [])
-        }
-      } catch {
-        /* poll will restore truth */
+      const data = await postMutation({ type: "setParam", node: nodeId, name, value })
+      if (data?.ok) {
+        versionRef.current = data.graph.meta.version
+        setIssues(data.results.at(-1)?.issues ?? [])
       }
-      // debounce re-execution: the edit → geometry moment
-      if (execTimer.current) clearTimeout(execTimer.current)
-      execTimer.current = setTimeout(execute, 650)
+      scheduleExecute()
     },
-    [execute]
+    [postMutation, scheduleExecute]
   )
 
-  const { flowNodes, flowEdges } = React.useMemo(
-    () => toFlow(graph, onParam),
-    [graph, onParam]
+  /* ── server sync ───────────────────────────────────────────── */
+
+  const rebuild = React.useCallback(
+    (g: Graph) => {
+      const built = toFlow(g, positionsRef.current, onParam)
+      setFlowNodes(built.flowNodes)
+      setFlowEdges(built.flowEdges)
+    },
+    [onParam]
+  )
+
+  const fetchGraph = React.useCallback(
+    async (force = false) => {
+      try {
+        const res = await fetch("/api/graph")
+        if (!res.ok) return
+        const data = (await res.json()) as {
+          graph: Graph
+          issues: Issue[]
+          log?: ChangeEntry[]
+        }
+        if (data.log) onLogRef.current?.(data.log)
+        if (force || data.graph.meta.version !== versionRef.current) {
+          versionRef.current = data.graph.meta.version
+          setGraph(data.graph)
+          setIssues(data.issues)
+          rebuild(data.graph)
+        }
+      } catch {
+        /* app restarting; next poll will catch up */
+      }
+    },
+    [rebuild]
+  )
+
+  React.useEffect(() => {
+    fetchGraph(true)
+    const t = setInterval(() => fetchGraph(), 2500)
+    return () => clearInterval(t)
+  }, [fetchGraph, refreshKey])
+
+  /* ── canvas interactions ───────────────────────────────────── */
+
+  const onNodesChange = React.useCallback((changes: NodeChange<FlowNode<PanelData>>[]) => {
+    setFlowNodes((nds) => applyNodeChanges(changes, nds))
+    for (const c of changes) {
+      if (c.type === "position" && c.position)
+        positionsRef.current.set(c.id, c.position)
+    }
+  }, [])
+
+  const onNodeDragStop = React.useCallback(
+    (_e: MouseEvent | TouchEvent, node: FlowNode) => {
+      void postMutation({ type: "moveNode", id: node.id, position: node.position })
+    },
+    [postMutation]
+  )
+
+  const onConnect = React.useCallback(
+    async (conn: Connection) => {
+      if (!conn.source || !conn.target || !conn.sourceHandle || !conn.targetHandle)
+        return
+      const data = await postMutation({
+        type: "connect",
+        from: { node: conn.source, port: conn.sourceHandle },
+        to: { node: conn.target, port: conn.targetHandle },
+      })
+      if (data?.ok) {
+        versionRef.current = data.graph.meta.version
+        setGraph(data.graph)
+        setIssues(data.results.at(-1)?.issues ?? [])
+        rebuild(data.graph)
+        scheduleExecute()
+      }
+    },
+    [postMutation, rebuild, scheduleExecute]
   )
 
   const errors = issues.filter((i) => i.level === "error")
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* header strip */}
-      <div className="flex items-center gap-3 border-b border-border bg-secondary/40 px-3 py-1.5">
-        <span className="text-[10px] font-bold tracking-widest">
-          DEFINITION GRAPH
+      {/* control strip */}
+      <div className="flex items-center gap-3 border-b-2 border-border bg-secondary/40 px-3 py-1.5">
+        <span className="font-mono text-[10px] opacity-60">
+          {graph
+            ? `V${graph.meta.version} · ${graph.nodes.length} NODES · ${graph.edges.length} WIRES`
+            : "…"}
         </span>
-        <span className="font-mono text-[10px] opacity-50">
-          {graph ? `v${graph.meta.version} · ${graph.nodes.length} nodes` : "…"}
-        </span>
+        <ExecBadge state={exec} />
         <div className="ml-auto flex items-center gap-2">
-          <ExecBadge state={exec} />
+          <span className="hidden text-[9px] font-bold tracking-widest opacity-40 lg:inline">
+            DRAG NODES · WIRE PORTS · TUNE PARAMS
+          </span>
           <button
             onClick={execute}
-            className="border border-border bg-foreground px-2 py-0.5 text-[10px] font-bold tracking-widest text-background transition-colors hover:bg-accent hover:text-black"
+            className="border-2 border-border bg-foreground px-2.5 py-0.5 text-[10px] font-bold tracking-widest text-background transition-colors hover:bg-accent hover:text-black"
           >
             RUN ↵
           </button>
@@ -184,39 +277,42 @@ export function GraphPanel({
 
       {/* validation strip */}
       {errors.length > 0 && (
-        <div className="border-b border-border bg-destructive/10 px-3 py-1 text-[10px] font-bold text-destructive">
-          {errors[0].node ? `[${errors[0].node}] ` : ""}
+        <div className="border-b-2 border-border bg-accent/20 px-3 py-1 text-[10px] font-bold">
+          ⚠ {errors[0].node ? `[${errors[0].node}] ` : ""}
           {errors[0].message}
-          {errors.length > 1 && ` (+${errors.length - 1} more)`}
+          {errors.length > 1 && ` (+${errors.length - 1} MORE)`}
         </div>
       )}
 
-      {/* the graph */}
+      {/* the canvas */}
       <div className="min-h-0 flex-1">
         {graph && graph.nodes.length > 0 ? (
           <ReactFlow
             nodes={flowNodes}
             edges={flowEdges}
             nodeTypes={NODE_TYPES}
+            onNodesChange={onNodesChange}
+            onNodeDragStop={onNodeDragStop}
+            onConnect={onConnect}
             fitView
             fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
             minZoom={0.2}
             proOptions={{ hideAttribution: true }}
             nodesDraggable
-            nodesConnectable={false}
+            nodesConnectable
             deleteKeyCode={null}
           >
-            <Background gap={18} size={1} />
+            <Background gap={20} size={1.2} />
           </ReactFlow>
         ) : (
           <div className="grid h-full place-items-center p-6 text-center">
-            <div>
-              <p className="text-[11px] font-bold tracking-widest opacity-40">
+            <div className="border-2 border-border bg-background p-5">
+              <p className="text-[11px] font-bold tracking-widest">
                 NO DEFINITION YET
               </p>
               <p className="mx-auto mt-2 max-w-[260px] text-[11px] font-medium leading-relaxed opacity-60">
-                Ask the agent to model something — it authors an editable
-                definition here, not just geometry.
+                Describe something in the conversation — the agent authors an
+                editable definition here, not just geometry.
               </p>
             </div>
           </div>
@@ -230,14 +326,17 @@ function ExecBadge({ state }: { state: ExecState }) {
   const map: Record<ExecState["kind"], [string, string]> = {
     idle: ["", ""],
     running: ["PERFORMING…", "animate-pulse opacity-70"],
-    ok: ["LIVE IN RHINO", "text-accent"],
-    offline: ["RHINO OFFLINE — STILL EDITABLE", "opacity-50"],
-    error: ["EXECUTION ERROR", "text-destructive"],
+    ok: ["● LIVE IN RHINO", "text-accent"],
+    offline: ["○ RHINO OFFLINE — STILL EDITABLE", "opacity-50"],
+    error: ["✕ EXECUTION ERROR", ""],
   }
   const [label, cls] = map[state.kind]
   if (!label) return null
   return (
-    <span className={cn("text-[9px] font-bold tracking-widest", cls)} title={state.kind === "error" ? state.errors.join("\n") : undefined}>
+    <span
+      className={cn("text-[9px] font-bold tracking-widest", cls)}
+      title={state.kind === "error" ? state.errors.join("\n") : undefined}
+    >
       {label}
     </span>
   )
@@ -245,15 +344,14 @@ function ExecBadge({ state }: { state: ExecState }) {
 
 /* ── React Flow adapters ─────────────────────────────────────────── */
 
-const NODE_W = 240
+const NODE_W = 236
 
 function toFlow(
-  graph: Graph | null,
+  graph: Graph,
+  positions: Map<string, { x: number; y: number }>,
   onParam: PanelData["onParam"]
 ): { flowNodes: FlowNode<PanelData>[]; flowEdges: FlowEdge[] } {
-  if (!graph) return { flowNodes: [], flowEdges: [] }
-
-  // layered layout by upstream depth
+  // layered layout by upstream depth (fallback when nothing is stored)
   const depth = new Map<string, number>()
   const calcDepth = (id: string, seen: Set<string>): number => {
     if (depth.has(id)) return depth.get(id)!
@@ -273,23 +371,32 @@ function toFlow(
     const d = depth.get(gnode.id) ?? 0
     const row = perColumn.get(d) ?? 0
     perColumn.set(d, row + 1)
-    const inPorts = [
-      ...new Set(
-        graph.edges.filter((e) => e.to.node === gnode.id).map((e) => e.to.port)
-      ),
-    ]
+    const op = gnode.op
+    const wiredIn = new Set(
+      graph.edges.filter((e) => e.to.node === gnode.id).map((e) => e.to.port)
+    )
+    const inPorts = [...new Set([...wiredIn, ...portHints(op).ins])].map(
+      (port) => ({ port, wired: wiredIn.has(port) })
+    )
     const outPorts = [
-      ...new Set(
-        graph.edges.filter((e) => e.from.node === gnode.id).map((e) => e.from.port)
-      ),
+      ...new Set([
+        ...graph.edges
+          .filter((e) => e.from.node === gnode.id)
+          .map((e) => e.from.port),
+        ...portHints(op).outs,
+      ]),
     ]
+    const position =
+      gnode.position ??
+      positions.get(gnode.id) ?? {
+        x: d * (NODE_W + 80),
+        y: row * 200 + (d % 2) * 40,
+      }
+    positions.set(gnode.id, position)
     return {
       id: gnode.id,
       type: "pantograph",
-      position: gnode.position ?? {
-        x: d * (NODE_W + 70),
-        y: row * 190 + (d % 2) * 40,
-      },
+      position,
       data: { gnode, inPorts, outPorts, onParam },
     }
   })
@@ -302,12 +409,38 @@ function toFlow(
     targetHandle: e.to.port,
     label: e.semantics,
     style: { stroke: "var(--foreground)", strokeWidth: 1.5 },
-    labelStyle: { fontSize: 8, fontWeight: 700, letterSpacing: 0.5 },
+    labelStyle: { fontSize: 8, fontWeight: 700, letterSpacing: 0.5, fill: "var(--foreground)" },
     labelBgStyle: { fill: "var(--background)" },
   }))
 
   return { flowNodes, flowEdges }
 }
+
+/** Known ports per op so unwired inputs are still offered as drop targets. */
+const PORT_HINTS: Record<string, { ins: string[]; outs: string[] }> = {
+  GridPoints: { ins: [], outs: ["points", "ix", "iy"] },
+  StackedFrames: { ins: [], outs: ["planes", "levels"] },
+  RadialFrames: { ins: [], outs: ["planes", "angles"] },
+  HelixFrames: { ins: [], outs: ["planes", "points", "levels", "angles"] },
+  PhyllotaxisPoints: { ins: [], outs: ["points", "indices"] },
+  NumberList: { ins: [], outs: ["values"] },
+  RandomSeries: { ins: [], outs: ["values"] },
+  MathMap: { ins: ["values"], outs: ["values"] },
+  SineMap: { ins: ["values"], outs: ["values"] },
+  SineField: { ins: ["points"], outs: ["values"] },
+  AttractorValues: { ins: ["points"], outs: ["values"] },
+  PointsToPlanes: { ins: ["points"], outs: ["planes"] },
+  Rectangle: { ins: ["planes"], outs: ["curves"] },
+  Circle: { ins: ["planes", "radii"], outs: ["curves"] },
+  Sphere: { ins: ["points", "radii"], outs: ["solids"] },
+  Cylinder: { ins: ["points", "heights"], outs: ["solids"] },
+  Box: { ins: ["planes", "scales"], outs: ["solids"] },
+  RotateEach: { ins: ["geometry", "planes", "angles"], outs: ["geometry"] },
+  ScaleEach: { ins: ["geometry", "planes", "factors"], outs: ["geometry"] },
+  PlanarSrf: { ins: ["curves"], outs: ["surfaces"] },
+  Loft: { ins: ["curves"], outs: ["surfaces"] },
+}
+const portHints = (op: string) => PORT_HINTS[op] ?? { ins: [], outs: [] }
 
 /* ── custom node ─────────────────────────────────────────────────── */
 
@@ -317,17 +450,24 @@ function PantographNode({ data }: NodeProps<FlowNode<PanelData>>) {
 
   return (
     <div
-      className="border-2 border-border bg-background font-sans shadow-none"
+      className="border-2 border-border bg-background font-sans"
       style={{ width: NODE_W }}
     >
-      {inPorts.map((port, i) => (
+      {inPorts.map(({ port, wired }, i) => (
         <Handle
           key={port}
           id={port}
           type="target"
           position={Position.Left}
-          style={{ top: 18 + i * 14, background: "var(--foreground)", width: 7, height: 7, borderRadius: 0 }}
-          title={port}
+          style={{
+            top: 16 + i * 15,
+            background: wired ? "var(--foreground)" : "var(--background)",
+            border: "1.5px solid var(--foreground)",
+            width: 8,
+            height: 8,
+            borderRadius: 0,
+          }}
+          title={`in: ${port}`}
         />
       ))}
       {outPorts.map((port, i) => (
@@ -336,29 +476,43 @@ function PantographNode({ data }: NodeProps<FlowNode<PanelData>>) {
           id={port}
           type="source"
           position={Position.Right}
-          style={{ top: 18 + i * 14, background: "var(--accent)", width: 7, height: 7, borderRadius: 0 }}
-          title={port}
+          style={{
+            top: 16 + i * 15,
+            background: "var(--accent)",
+            border: "1.5px solid var(--foreground)",
+            width: 8,
+            height: 8,
+            borderRadius: 0,
+          }}
+          title={`out: ${port}`}
         />
       ))}
 
+      {/* band header — the drag handle */}
       <div
-        className="flex items-baseline justify-between gap-2 border-b-2 border-border bg-secondary/40 px-2 py-1"
-        title={gnode.provenance ? `${gnode.provenance.clause} — ${gnode.provenance.reason}` : undefined}
+        className="flex cursor-grab items-baseline justify-between gap-2 border-b-2 border-border bg-muted px-2 py-1 active:cursor-grabbing"
+        title={
+          gnode.provenance
+            ? `${gnode.provenance.clause} — ${gnode.provenance.reason}`
+            : undefined
+        }
       >
-        <span className="text-[10px] font-bold tracking-widest">{gnode.op}</span>
-        <span className="font-mono text-[9px] opacity-50">{gnode.id}</span>
+        <span className="text-[10px] font-bold tracking-widest">{gnode.op.toUpperCase()}</span>
+        <span className="font-mono text-[9px] opacity-60">{gnode.id}</span>
       </div>
 
       {gnode.provenance && (
-        <div className="border-b border-border/40 px-2 py-1 text-[9px] font-medium italic leading-snug opacity-60">
+        <div className="border-b border-border/30 px-2 py-1 text-[9px] font-medium italic leading-snug opacity-60">
           “{gnode.provenance.clause}”
         </div>
       )}
 
       {numberParams.length > 0 && (
-        <div className="flex flex-col gap-1 px-2 py-1.5">
-          {numberParams.map((p) => (
-            <ParamRow key={p.name} nodeId={gnode.id} param={p} onParam={onParam} />
+        <div className="flex flex-col px-2 py-1">
+          {numberParams.map((p, i) => (
+            <div key={p.name} className={i > 0 ? "border-t border-border/20" : ""}>
+              <ParamRow nodeId={gnode.id} param={p} onParam={onParam} />
+            </div>
           ))}
         </div>
       )}
@@ -378,8 +532,11 @@ function ParamRow({
   const value = param.value as number
   const coerce = (v: number) => (param.integer ? Math.round(v) : v)
   return (
-    <div className="nodrag flex items-center gap-1.5" title={param.provenance?.clause}>
-      <span className="w-[64px] truncate text-[9px] font-bold uppercase tracking-wider opacity-60">
+    <div
+      className="nodrag flex items-center gap-1.5 py-[3px]"
+      title={param.provenance?.clause}
+    >
+      <span className="w-[62px] truncate text-[9px] font-bold uppercase tracking-wider opacity-60">
         {param.name}
       </span>
       {param.range ? (

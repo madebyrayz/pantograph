@@ -9,36 +9,36 @@ import * as React from "react"
  */
 
 const PIPELINE = [
-  { box: "CHAT WORKSPACE", sub: "BROWSER UI" },
-  { box: "AI AGENT", sub: "PLANS + WRITES CODE" },
-  { box: "TOOL INTERFACE", sub: "3 TYPED OPERATIONS" },
-  { box: "LOCAL BRIDGE", sub: "LOOPBACK TCP" },
+  { box: "WORKSPACE", sub: "CONVERSATION + CANVAS" },
+  { box: "AI AGENT", sub: "PLANS THE DEFINITION" },
+  { box: "DEFINITION GRAPH", sub: "THE FIRST-CLASS OBJECT" },
+  { box: "COMPILER", sub: "GRAPH → RHINOSCRIPT" },
   { box: "RHINO 8", sub: "LIVE DOCUMENT" },
 ]
 
 const WIRE_LOG = [
-  '→ tools/call execute_rhino_code { "code": "rs.AddRectangle(plane, 12, 12)" }',
-  '← { "status": "success", "result": "floor stack complete" }',
-  "→ tools/call get_scene_info {}",
-  '← { "object_count": 40, "layers": ["Default"], "unit_system": "Millimeters" }',
-  "→ tools/call capture_viewport {}",
-  '← { "image": "png · 1864×2516 · active view" }',
-  '→ tools/call execute_rhino_code { "code": "rs.RotateObject(crv, base, i * 2.5)" }',
-  '← { "status": "success", "result": "(code ran successfully)" }',
+  '→ graph_add_node { "id": "twist", "op": "MathMap", "clause": "3.2° more per level" }',
+  '← ok (definition v6)',
+  '→ graph_connect { "frames.levels → twist.values", "semantics": "twist grows with level" }',
+  '← ok (definition v7)',
+  '→ graph_execute {}',
+  '← performed: graph v11 · 60 objects · viewport capture attached',
+  '→ graph_set_param { "node": "taper", "name": "factor", "value": -0.012 }',
+  '← ok (definition v12) — re-performing',
 ]
 
 const TOOLS = [
   {
-    sig: "execute_rhino_code(code: str)",
-    desc: "Runs Python with rhinoscriptsyntax, scriptcontext, and RhinoCommon in the live document, on Rhino's UI thread. Stdout returns to the agent.",
+    sig: "graph_add_node(id, op, params, provenance)",
+    desc: "Adds one typed node to the definition. Provenance is required: the prompt clause this node answers, and why it exists.",
   },
   {
-    sig: "get_scene_info()",
-    desc: "Returns document name, unit system, layers, and per-object id / type / layer / name — the agent reads before it writes.",
+    sig: "graph_connect(from, to, semantics)",
+    desc: "Wires an output port into an input port, with a note on what the dependency means. Validation errors come straight back for repair.",
   },
   {
-    sig: "capture_viewport()",
-    desc: "Captures the active viewport to an image the agent can actually look at — closing the generate → inspect → correct loop.",
+    sig: "graph_execute()",
+    desc: "Compiles the definition to rhinoscriptsyntax, performs it in the live document, and returns a viewport capture the agent inspects.",
   },
 ]
 
@@ -46,17 +46,17 @@ const STEPS = [
   {
     n: "01",
     title: "DESCRIBE",
-    text: "Design intent is stated in plain language — “a twisting tower, 40 floors, 2.5° per level.” No scripting, no node graph.",
+    text: "Design intent stated in plain language — “a lofted skin over 50 floors that twist and taper.” No scripting, no node graph to hand-build.",
   },
   {
     n: "02",
-    title: "EXECUTE",
-    text: "The agent decomposes the intent into rhinoscriptsyntax and runs it in the open document, reading the scene back as it works.",
+    title: "AUTHOR",
+    text: "The agent authors a definition graph through narrow, validated mutations — never baked geometry. The graph is the deliverable.",
   },
   {
     n: "03",
-    title: "VERIFY",
-    text: "It captures the viewport, inspects its own output, and iterates — every tool call visible as it happens.",
+    title: "VERIFY + HAND BACK",
+    text: "It performs the definition, inspects the capture, repairs — then the designer keeps editing the same graph: drag, rewire, retune.",
   },
 ]
 
@@ -64,7 +64,7 @@ export function Method() {
   return (
     <div>
       {/* pipeline */}
-      <div className="overflow-x-auto border-b-2 border-border bg-secondary/40 px-5 py-6">
+      <div className="overflow-x-auto border-b-2 border-border bg-secondary/40 p-4">
         <div className="flex min-w-[720px] items-stretch justify-between gap-0">
           {PIPELINE.map((p, i) => (
             <div key={p.box} className="flex flex-1 items-center">
@@ -93,7 +93,7 @@ export function Method() {
         {TOOLS.map((t, i) => (
           <div
             key={t.sig}
-            className={`p-5 ${i > 0 ? "border-t-2 border-border lg:border-l-2 lg:border-t-0" : ""}`}
+            className={`p-4 ${i > 0 ? "border-t-2 border-border lg:border-l-2 lg:border-t-0" : ""}`}
           >
             <p className="border-2 border-border bg-background px-2 py-1 font-mono text-[11px] font-bold">
               {t.sig}
@@ -110,10 +110,10 @@ export function Method() {
         {STEPS.map((s, i) => (
           <div
             key={s.n}
-            className={`p-5 ${i > 0 ? "border-t-2 border-border sm:border-l-2 sm:border-t-0" : ""}`}
+            className={`p-4 ${i > 0 ? "border-t-2 border-border sm:border-l-2 sm:border-t-0" : ""}`}
           >
             <p className="text-[11px] font-bold text-accent">{s.n}</p>
-            <p className="text-lg font-bold tracking-tight">{s.title}</p>
+            <p className="text-base font-bold tracking-tight">{s.title}</p>
             <p className="mt-2 text-[12px] font-medium leading-relaxed">
               {s.text}
             </p>
