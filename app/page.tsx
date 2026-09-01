@@ -1,9 +1,13 @@
+import fs from "fs"
+import path from "path"
+
 import type { Metadata } from "next"
 
 import { Hero } from "@/components/landing/hero"
 import { LiveDemo } from "@/components/landing/live-demo"
 import { Method } from "@/components/landing/method"
 import { PantographFigure } from "@/components/landing/pantograph-figure"
+import { Research } from "@/components/landing/research"
 import { Studies } from "@/components/landing/studies"
 
 export const metadata: Metadata = {
@@ -12,7 +16,19 @@ export const metadata: Metadata = {
     "A project by Ray Zhang: agentic modeling inside CAD. Describe geometry in plain language; an AI agent executes it in a live Rhino document and verifies its own work. Open source soon.",
 }
 
+function loadPaper(): string {
+  try {
+    return fs.readFileSync(
+      path.join(process.cwd(), "cms", "pantograph-the-editable-return.md"),
+      "utf-8"
+    )
+  } catch {
+    return "# The Editable Return\n\nThe paper is being prepared."
+  }
+}
+
 export default function Landing() {
+  const paper = loadPaper()
   return (
     <main className="bg-background text-foreground">
       <Hero />
@@ -65,6 +81,12 @@ export default function Landing() {
           <Studies />
         </section>
 
+        {/* 05 RESEARCH */}
+        <section id="research" className="border-2 border-border">
+          <SectionBand n="05" title="RESEARCH" />
+          <Research markdown={paper} />
+        </section>
+
         {/* footer */}
         <footer className="border-2 border-border">
           <div className="flex flex-col gap-2 bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -74,14 +96,22 @@ export default function Landing() {
             >
               INFO@PANTOGRAPH.AI
             </a>
-            <a
-              href="https://rayzlz.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[11px] font-bold tracking-wider underline underline-offset-4 hover:opacity-70"
-            >
-              A PROJECT BY RAY ZHANG
-            </a>
+            <span className="flex items-center gap-4">
+              <a
+                href="https://rayzlz.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] font-bold tracking-wider underline underline-offset-4 hover:opacity-70"
+              >
+                A PROJECT BY RAY ZHANG
+              </a>
+              <a
+                href="mailto:info@pantograph.ai?subject=Pantograph%20bug%20report"
+                className="text-[11px] font-bold tracking-wider underline underline-offset-4 hover:opacity-70"
+              >
+                REPORT A BUG
+              </a>
+            </span>
             <span className="text-[13px] font-bold tracking-wider">
               PANTOGRAPH.AI
             </span>

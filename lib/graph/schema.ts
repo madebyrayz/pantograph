@@ -45,6 +45,8 @@ export interface GraphNode {
   provenance?: Provenance
   /** Editor hint only; never affects compilation. */
   position?: { x: number; y: number }
+  /** Editor hint only; canvas node size from a manual resize. */
+  size?: { width: number; height?: number }
 }
 
 export interface Edge {

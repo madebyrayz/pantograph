@@ -42,6 +42,12 @@ export type Mutation =
       id: string
       position: { x: number; y: number }
     }
+  | {
+      /** Editor hint only — canvas node size. Layout-only like moveNode. */
+      type: "resizeNode"
+      id: string
+      size: { width: number; height?: number }
+    }
   | { type: "clear" }
 
 export interface MutationResult {
@@ -144,6 +150,13 @@ export function applyMutation(
       // layout-only: no version bump
       return { ok: true, issues: validate(graph), version: graph.meta.version }
     }
+    case "resizeNode": {
+      const node = graph.nodes.find((n) => n.id === m.id)
+      if (!node) return reject(`no node "${m.id}"`)
+      node.size = m.size
+      // layout-only: no version bump
+      return { ok: true, issues: validate(graph), version: graph.meta.version }
+    }
     case "clear": {
       graph.nodes = []
       graph.edges = []
@@ -172,6 +185,8 @@ export function describeMutation(m: Mutation): string {
       return m.title ? `renamed to "${m.title}"` : "updated metadata"
     case "moveNode":
       return `moved ${m.id}`
+    case "resizeNode":
+      return `resized ${m.id}`
     case "clear":
       return "cleared the definition"
   }

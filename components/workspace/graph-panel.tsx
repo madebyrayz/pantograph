@@ -4,7 +4,9 @@ import * as React from "react"
 import {
   applyNodeChanges,
   Background,
+  Controls,
   Handle,
+  NodeResizer,
   Position,
   ReactFlow,
   type Connection,
@@ -38,6 +40,7 @@ interface GNode {
   params: GParam[]
   provenance?: Provenance
   position?: { x: number; y: number }
+  size?: { width: number; height?: number }
 }
 interface GEdge {
   from: { node: string; port: string }
@@ -70,6 +73,7 @@ interface PanelData extends Record<string, unknown> {
   inPorts: { port: string; wired: boolean }[]
   outPorts: string[]
   onParam: (nodeId: string, name: string, value: number) => void
+  onResize: (nodeId: string, size: { width: number; height?: number }) => void
 }
 
 export function GraphPanel({
@@ -174,13 +178,20 @@ export function GraphPanel({
 
   /* ── server sync ───────────────────────────────────────────── */
 
+  const onResize = React.useCallback(
+    (nodeId: string, size: { width: number; height?: number }) => {
+      void postMutation({ type: "resizeNode", id: nodeId, size })
+    },
+    [postMutation]
+  )
+
   const rebuild = React.useCallback(
     (g: Graph) => {
-      const built = toFlow(g, positionsRef.current, onParam)
+      const built = toFlow(g, positionsRef.current, onParam, onResize)
       setFlowNodes(built.flowNodes)
       setFlowEdges(built.flowEdges)
     },
-    [onParam]
+    [onParam, onResize]
   )
 
   const fetchGraph = React.useCallback(
@@ -224,10 +235,34 @@ export function GraphPanel({
   }, [])
 
   const onNodeDragStop = React.useCallback(
-    (_e: MouseEvent | TouchEvent, node: FlowNode) => {
-      void postMutation({ type: "moveNode", id: node.id, position: node.position })
+    (_e: MouseEvent | TouchEvent, _node: FlowNode, nodes: FlowNode[]) => {
+      for (const n of nodes)
+        void postMutation({ type: "moveNode", id: n.id, position: n.position })
     },
     [postMutation]
+  )
+
+  const onEdgesDelete = React.useCallback(
+    async (edges: FlowEdge[]) => {
+      for (const e of edges)
+        await postMutation({
+          type: "disconnect",
+          to: { node: e.target, port: e.targetHandle },
+        })
+      await fetchGraph(true)
+      scheduleExecute()
+    },
+    [postMutation, fetchGraph, scheduleExecute]
+  )
+
+  const onNodesDelete = React.useCallback(
+    async (nodes: FlowNode[]) => {
+      for (const n of nodes)
+        await postMutation({ type: "removeNode", id: n.id })
+      await fetchGraph(true)
+      scheduleExecute()
+    },
+    [postMutation, fetchGraph, scheduleExecute]
   )
 
   const onConnect = React.useCallback(
@@ -263,8 +298,8 @@ export function GraphPanel({
         </span>
         <ExecBadge state={exec} />
         <div className="ml-auto flex items-center gap-2">
-          <span className="hidden text-[9px] font-bold tracking-widest opacity-40 lg:inline">
-            DRAG NODES · WIRE PORTS · TUNE PARAMS
+          <span className="hidden text-[9px] font-bold tracking-widest opacity-40 xl:inline">
+            DRAG · WIRE · RESIZE · ⇧DRAG SELECTS · ⌫ DELETES
           </span>
           <button
             onClick={execute}
@@ -294,15 +329,19 @@ export function GraphPanel({
             onNodesChange={onNodesChange}
             onNodeDragStop={onNodeDragStop}
             onConnect={onConnect}
+            onEdgesDelete={onEdgesDelete}
+            onNodesDelete={onNodesDelete}
             fitView
             fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
             minZoom={0.2}
             proOptions={{ hideAttribution: true }}
             nodesDraggable
             nodesConnectable
-            deleteKeyCode={null}
+            elementsSelectable
+            deleteKeyCode={["Backspace", "Delete"]}
           >
             <Background gap={20} size={1.2} />
+            <Controls showInteractive={false} position="bottom-right" />
           </ReactFlow>
         ) : (
           <div className="grid h-full place-items-center p-6 text-center">
@@ -349,7 +388,8 @@ const NODE_W = 236
 function toFlow(
   graph: Graph,
   positions: Map<string, { x: number; y: number }>,
-  onParam: PanelData["onParam"]
+  onParam: PanelData["onParam"],
+  onResize: PanelData["onResize"]
 ): { flowNodes: FlowNode<PanelData>[]; flowEdges: FlowEdge[] } {
   // layered layout by upstream depth (fallback when nothing is stored)
   const depth = new Map<string, number>()
@@ -397,7 +437,8 @@ function toFlow(
       id: gnode.id,
       type: "pantograph",
       position,
-      data: { gnode, inPorts, outPorts, onParam },
+      width: gnode.size?.width ?? NODE_W,
+      data: { gnode, inPorts, outPorts, onParam, onResize },
     }
   })
 
@@ -444,15 +485,22 @@ const portHints = (op: string) => PORT_HINTS[op] ?? { ins: [], outs: [] }
 
 /* ── custom node ─────────────────────────────────────────────────── */
 
-function PantographNode({ data }: NodeProps<FlowNode<PanelData>>) {
-  const { gnode, inPorts, outPorts, onParam } = data
+function PantographNode({ id, data, selected }: NodeProps<FlowNode<PanelData>>) {
+  const { gnode, inPorts, outPorts, onParam, onResize } = data
   const numberParams = gnode.params.filter((p) => typeof p.value === "number")
 
   return (
-    <div
-      className="border-2 border-border bg-background font-sans"
-      style={{ width: NODE_W }}
-    >
+    <div className="h-full min-h-full w-full border-2 border-border bg-background font-sans">
+      <NodeResizer
+        isVisible={selected}
+        minWidth={200}
+        minHeight={60}
+        lineClassName="!border-accent"
+        handleClassName="!size-2 !rounded-none !border-2 !border-border !bg-accent"
+        onResizeEnd={(_e, params) =>
+          onResize(id, { width: Math.round(params.width) })
+        }
+      />
       {inPorts.map(({ port, wired }, i) => (
         <Handle
           key={port}
@@ -532,14 +580,22 @@ function ParamRow({
   const value = param.value as number
   const coerce = (v: number) => (param.integer ? Math.round(v) : v)
   return (
-    <div
-      className="nodrag flex items-center gap-1.5 py-[3px]"
-      title={param.provenance?.clause}
-    >
-      <span className="w-[62px] truncate text-[9px] font-bold uppercase tracking-wider opacity-60">
-        {param.name}
-      </span>
-      {param.range ? (
+    <div className="nodrag py-1" title={param.provenance?.clause}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[9px] font-bold uppercase tracking-wider opacity-70">
+          {param.name}
+        </span>
+        <input
+          type="number"
+          value={Number.isInteger(value) ? value : Number(value.toFixed(2))}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value)
+            if (Number.isFinite(v)) onParam(nodeId, param.name, coerce(v))
+          }}
+          className="w-[56px] border border-border bg-background px-1 py-px text-right font-mono text-[10px] outline-none focus:border-accent"
+        />
+      </div>
+      {param.range && (
         <input
           type="range"
           min={param.range[0]}
@@ -547,20 +603,9 @@ function ParamRow({
           step={param.integer ? 1 : (param.range[1] - param.range[0]) / 100}
           value={value}
           onChange={(e) => onParam(nodeId, param.name, coerce(parseFloat(e.target.value)))}
-          className="h-1 flex-1 cursor-ew-resize appearance-none bg-secondary accent-[var(--accent)]"
+          className="mt-1 h-1 w-full cursor-ew-resize appearance-none bg-secondary accent-[var(--accent)]"
         />
-      ) : (
-        <span className="flex-1" />
       )}
-      <input
-        type="number"
-        value={Number.isInteger(value) ? value : Number(value.toFixed(2))}
-        onChange={(e) => {
-          const v = parseFloat(e.target.value)
-          if (Number.isFinite(v)) onParam(nodeId, param.name, coerce(v))
-        }}
-        className="w-[52px] border border-border bg-background px-1 py-px text-right font-mono text-[10px] outline-none focus:border-accent"
-      />
     </div>
   )
 }

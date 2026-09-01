@@ -64,6 +64,7 @@ export default function Workspace() {
   const [graphRefresh, setGraphRefresh] = React.useState(0)
   const [log, setLog] = React.useState<ChangeEntry[]>([])
   const [rhino, setRhino] = React.useState<boolean | null>(null)
+  const [agent, setAgent] = React.useState<boolean | null>(null)
   const [guide, setGuide] = React.useState(false)
   const [hosted, setHosted] = React.useState(false)
 
@@ -101,9 +102,15 @@ export default function Workspace() {
       try {
         const r = await fetch("/api/rhino")
         const d = await r.json()
-        if (alive) setRhino(!!d.online)
+        if (alive) {
+          setRhino(!!d.online)
+          setAgent(!!d.agent)
+        }
       } catch {
-        if (alive) setRhino(false)
+        if (alive) {
+          setRhino(false)
+          setAgent(false)
+        }
       }
     }
     check()
@@ -453,16 +460,24 @@ export default function Workspace() {
               SESSION
             </div>
             <dl className="px-3 py-2">
+              <Row k="RHINO" v={rhino === null ? "…" : rhino ? "● ONLINE" : "○ OFFLINE"} />
+              <Row k="AGENT" v={agent === null ? "…" : agent ? "● AVAILABLE" : "○ NOT INSTALLED"} />
               <Row k="MODEL" v={model ?? "—"} />
               <Row k="SESSION" v={sessionId ? sessionId.slice(0, 8) : "—"} />
               <Row k="USAGE" v={`$${cost.toFixed(3)}`} />
               <Row k="STATUS" v={busy ? "WORKING…" : "STANDBY"} />
             </dl>
+            <a
+              href={`mailto:info@pantograph.ai?subject=${encodeURIComponent("Pantograph bug report")}&body=${encodeURIComponent("What happened:\n\nWhat I expected:\n\n(Please keep the details below)\npage: /demo\n")}`}
+              className="block border-t-2 border-border bg-muted px-3 py-1.5 text-center text-[9px] font-bold tracking-widest transition-colors hover:bg-accent hover:text-black"
+            >
+              REPORT A BUG → INFO@PANTOGRAPH.AI
+            </a>
           </div>
         </aside>
       </main>
 
-      {guide && <Guide rhino={rhino} onClose={dismissGuide} />}
+      {guide && <Guide rhino={rhino} agent={agent} onClose={dismissGuide} />}
     </div>
   )
 }
@@ -514,6 +529,14 @@ function ThemeDot() {
       className="size-3 animate-blink cursor-pointer rounded-full bg-foreground transition-transform hover:scale-110"
       aria-label="Toggle dark mode"
     />
+  )
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="border border-border bg-secondary/40 px-1 font-mono text-[10px] font-bold">
+      {children}
+    </span>
   )
 }
 
@@ -738,29 +761,62 @@ function ChangeLog({ log }: { log: ChangeEntry[] }) {
 
 function Guide({
   rhino,
+  agent,
   onClose,
 }: {
   rhino: boolean | null
+  agent: boolean | null
   onClose: () => void
 }) {
-  const steps = [
+  const steps: {
+    n: string
+    title: string
+    body: React.ReactNode
+    status: string | null
+    live: boolean
+  }[] = [
     {
       n: "01",
       title: "CONNECT RHINO",
-      body: "Open Rhino 8, type ScriptEditor, run rhino_side/pantograph_listener.py, leave Rhino open. Without it the definition still works — geometry just waits.",
-      status: rhino ? "● CONNECTED" : "○ NOT CONNECTED YET",
+      body: (
+        <>
+          Open Rhino 8 and type <Kbd>ScriptEditor</Kbd>. Run{" "}
+          <Kbd>rhino_side/pantograph_listener.py</Kbd> and leave Rhino open.
+          <br />
+          No Rhino? The definition still works — geometry just waits.
+        </>
+      ),
+      status: rhino ? "● CONNECTED" : "○ NOT CONNECTED",
+      live: !!rhino,
     },
     {
       n: "02",
       title: "DESCRIBE INTENT",
-      body: "Type what you want in plain language. The agent plans it and authors a definition graph — typed nodes, parameters, wires — not baked geometry.",
-      status: null,
+      body: (
+        <>
+          Say what you want in plain language.
+          <br />
+          The agent answers with a definition graph — typed nodes, parameters,
+          wires. Never baked geometry.
+        </>
+      ),
+      status: agent === null ? null : agent ? "● AGENT READY" : "○ CLAUDE CLI NOT FOUND",
+      live: !!agent,
     },
     {
       n: "03",
       title: "EDIT THE DEFINITION",
-      body: "Drag nodes, wire ports, pull sliders on the canvas. Every edit recompiles and re-performs in Rhino. The definition is yours to re-author.",
+      body: (
+        <>
+          Drag nodes. Wire ports. Pull sliders. Delete with <Kbd>⌫</Kbd>,
+          group-select with <Kbd>⇧ drag</Kbd>.
+          <br />
+          Every edit re-performs in Rhino. The definition is yours to
+          re-author.
+        </>
+      ),
       status: null,
+      live: false,
     },
   ]
 
@@ -786,8 +842,8 @@ function Guide({
         </div>
 
         {steps.map((s) => (
-          <div key={s.n} className="flex border-b-2 border-border">
-            <span className="border-r-2 border-border px-3 py-2.5 text-sm font-bold">
+          <div key={s.n} className="flex items-stretch border-b-2 border-border">
+            <span className="flex w-12 shrink-0 items-start justify-center border-r-2 border-border pt-2.5 text-sm font-bold">
               {s.n}
             </span>
             <div className="min-w-0 flex-1 px-3 py-2.5">
@@ -796,8 +852,8 @@ function Guide({
                 {s.status && (
                   <span
                     className={cn(
-                      "text-[9px] font-bold tracking-widest",
-                      rhino ? "text-accent" : "opacity-50"
+                      "shrink-0 text-[9px] font-bold tracking-widest",
+                      s.live ? "text-accent" : "opacity-50"
                     )}
                   >
                     {s.status}

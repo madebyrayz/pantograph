@@ -4,6 +4,14 @@ import { Geist, Geist_Mono } from "next/font/google"
 export const metadata: Metadata = {
   title: "Pantograph",
   description: "Intelligence Aided Design — an AI workspace for Rhino",
+  icons: {
+    icon: [
+      { url: "/brand/mark-black-32.png", media: "(prefers-color-scheme: light)" },
+      { url: "/brand/mark-white-32.png", media: "(prefers-color-scheme: dark)" },
+      { url: "/brand/mark-black-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/brand/mark-black-180.png", sizes: "180x180" }],
+  },
 }
 
 import "./globals.css"

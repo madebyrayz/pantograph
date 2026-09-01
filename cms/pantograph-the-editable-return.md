@@ -1,0 +1,180 @@
+# The Editable Return
+
+### Pantograph and the case for an orchestrative design machine
+
+Ray Zhang
+Research prototype built at Bjarke Ingels Group, 2024 to 2025. Written at Harvard Graduate School of Design, 2026.
+
+---
+
+## I. The instrument
+
+A pantograph is a hinged parallelogram of rods. One joint carries a tracing point, another carries a pencil. When the hand moves the tracer across a drawing, the linkage carries that motion to the pencil, which repeats it at a different scale on a second sheet. Christoph Scheiner described the instrument in 1603 and used it to copy and enlarge drawings; engravers, cartographers and machinists used it for three centuries afterwards. The mechanism is not remarkable. What is remarkable is the arrangement of agency inside it. The hand never leaves the original. The copy is produced elsewhere, at another scale, in another register, but the gesture that produces it remains in the hand's possession for the whole duration of the act. The instrument does not take the drawing from you. It extends your hold on it.
+
+Set that against a camera. The camera also produces a copy, but at the moment of exposure the hand releases the image. What comes back is finished. You may frame differently and shoot again, but you cannot reach into the exposure and move a line.
+
+I named the system described in this paper after the linkage, not the camera, because the difference between them is the whole argument. Pantograph is an agentic CAD prototype that accepts a description in natural language and returns, in Rhino and Grasshopper, a parametric definition: a graph of typed operations joined by edges that carry values from one to the next, with numeric parameters exposed as sliders. It does not return a surface. It returns the structure that produces surfaces. You can take hold of the node that sets a column spacing and change it, and because an edge runs from that node to the operations that place the columns, the geometry re-forms. This is a small mechanical fact, an edge in a directed graph. But it decides something large. A returned surface closes the question of who is designing. A returned graph keeps it open.
+
+The paper makes one claim from several directions. The claim is that the value of a machine that assists design lies not in the artifact it delivers but in the structure it leaves behind for a person to revise, and that the choice between returning an object and returning a definition is a choice between two theories of what a design machine is for. I will call the first theory generative and the second orchestrative. I will argue that the second is the right one, that it has a long intellectual history which the current wave of generative tools has largely forgotten, and that it is at the same time a precise engineering position with a documented problem to solve. The prototype is the evidence that the position can be built. It is not evidence that the position has been fulfilled, and I will be exact about the difference.
+
+*[Figure 1. Left: a generated mesh, a terminus. Right: a Pantograph definition graph, one slider mid-drag, the geometry beneath it updating.]*
+
+---
+
+## II. Two returns
+
+Every system that assists design must eventually return something, and what it returns is a compressed statement of what its builders believe design is.
+
+A generative system returns a finished artifact. Give it a prompt, receive a mesh, a rendering, a closed form. The interaction has the shape of a purchase: a request is made, a good is delivered, the transaction ends. Whatever agency the person had at the moment of asking is spent at the moment of receiving. If the result is wrong, the remedy is to ask again and hope. The tool is fast and the object is often plausible, and the person's relation to the object is that of a recipient.
+
+An orchestrative system returns a structure. It does not hand over a form; it hands over the arrangement of decisions from which forms follow, and it leaves that arrangement open. The interaction has the shape of a working session rather than a purchase. The machine proposes an organisation, the person adjusts it, the machine responds to the adjustment, and agency circulates between them instead of transferring once. The word orchestrative is meant precisely. An orchestra is coordinated, not replaced; the conductor does not play the instruments, and the score is not the performance. The system coordinates agency across the person, the model and the material, and its output is the thing that lets coordination continue.
+
+The distinction is not about model architecture. Two systems may call the same language model and differ entirely in what they return. It is a distinction about the terminal object and about who holds authorship after it arrives. This is the general problem that Wedge, the design research studio I co-founded, works on under the name synthetic authorship: protocols and systems for collaboration between humans, machines and matter in which authorship is distributed and coordinated rather than surrendered. Pantograph is the narrowest and most concrete instance of that programme I have built. It answers a single question. When an agent writes CAD, what should it write?
+
+Kostas Terzidis drew a related line in *Algorithmic Architecture* (2006) between computerization, the use of the computer to record and automate what has already been conceived, and computation, the use of the computer to explore what is indeterminate and not yet fully conceived. A mesh returned from a prompt is computerization dressed as its opposite: the form is conceived by the model in a single pass and the computer records it. A definition returned from a prompt is computation in his sense, because what comes back is not a form but a space of forms, with the axes of that space exposed as parameters. The prototype's design commitment is to stay on the computational side of that line even though the generative side is faster and looks, at first glance, more impressive.
+
+---
+
+## III. The conversation that was promised
+
+The idea that a machine might participate in design as a partner rather than a tool is not new, and reading Pantograph as new would be a mistake that flatters it and weakens it at the same time. The idea belongs to the cybernetics of the 1960s, and the honest thing to do is to inherit it with its failures attached.
+
+Gordon Pask wrote in *Architectural Design* in September 1969 that architects are first and foremost system designers, and that what they design is not buildings but the conditions under which buildings and their inhabitants adapt to one another. His conversation theory, developed through the 1970s, described learning and design alike as a loop of mutual specification between two participants who each model the other and revise their model in the exchange. In the same years Nicholas Negroponte's Architecture Machine Group at MIT set out, in *The Architecture Machine* (1970) and *Soft Architecture Machines* (1975), to build a machine that would be a design associate rather than a drafting aid, one that would learn a designer's preferences and argue back. Pask contributed a chapter to the second book. Cedric Price brought Pask onto the Fun Palace as a cybernetician. Molly Wright Steenson's *Architectural Intelligence* (2017) tells this history carefully, and I lean on her account here.
+
+Most of these machines did not work as described. The hardware was inadequate to the ambition, and the ambition was in places closer to a manifesto than a specification. I do not want to claim that a language model finally vindicates Pask and Negroponte. I want to claim something smaller: that it makes a thin, practical version of their loop buildable, and that the loop is worth building in their terms rather than in the terms of a delivery service.
+
+Here is the loop in the prototype. The person states an intent in ordinary language. The agent produces a plan and, through a constrained set of operations, writes a definition. The definition is executed and the result is presented, together with the definition itself. The person adjusts the definition directly, or states a revised intent, and the agent responds to the adjusted state rather than beginning again. Each of these steps has a name in Pask's model. The person's statement is one participant's specification. The agent's definition is the other participant's model of that specification, made external and inspectable. The person's edit is a correction of the model. The agent's response is a revision in light of the correction. The definition graph is the shared object across which the conversation takes place. Without an editable shared object there is no conversation, only a sequence of requests.
+
+Ross Ashby's law of requisite variety gives the engineering backbone to this. Only variety can absorb variety: a regulator can only cope with as many states of its environment as it can itself distinguish and respond to. An open-ended design intent has enormous variety. A system that answers it with a fixed template, or with a single opaque form, has almost none; it can only match or fail. A system that answers with an editable graph has variety in proportion to the graph's degrees of freedom, and it exposes that variety to the person rather than exhausting it internally. Heinz von Foerster's second-order cybernetics adds the last piece. The observer is inside the system. The designer who edits the definition is not an external user operating a machine but a term in the machine's own process, and the definition is designed to be edited precisely because the designer's edits are how the system as a whole regulates itself.
+
+*[Figure 2. Pask's conversation loop redrawn, with the four Pantograph steps placed on it and the definition graph marked as the shared object.]*
+
+---
+
+## IV. Score and painting
+
+The most useful distinction I know for what Pantograph changes comes not from computer science but from the philosophy of art. In *Languages of Art* (1968) Nelson Goodman divided the arts into two kinds according to how a work's identity is fixed. A work is autographic if the difference between the original and a copy matters, if even a perfect duplicate does not count as the work because being the work depends on a history of production. Painting is autographic. A work is allographic if its identity is fixed by a notation, so that any correct execution of the notation is an instance of the work. Music is allographic. The score is the work; a performance is one realisation of it; a second performance from the same score is not a forgery but another instance.
+
+A generated mesh is autographic. It is a particular output with a production history and no notation behind it. You cannot perform it again. You cannot perform it differently. If you want it changed you must produce another output, and the second output has no notational relation to the first; it is a new painting, not a new performance. This is why editing generated geometry is so frustrating in practice. There is nothing to edit but the vertices, and the vertices do not know why they are where they are.
+
+A Pantograph definition is allographic. It is a score. It can be executed once, executed again with a value changed, executed by someone else on another machine, and every execution is a legitimate instance of the same authored notation. Change the slider and you have not forged the work; you have performed it differently. The graph, not the geometry, is where the work lives.
+
+Mario Carpo has argued in *The Alphabet and the Algorithm* (2011) that this is architecture's native condition. Since Alberti separated design from building in the fifteenth century, the architect has been the author of a notation, the drawing, of which the building is meant to be an identical copy. Architecture became allographic before the word existed. Carpo's further claim is that the digital ends the identicality that Alberti required, since everything digital is variable, and reopens design to variation and participation. Generative tools that return one-off meshes run against this. They make design autographic again at exactly the moment its medium became infinitely variable. They return a painting when the whole history of the discipline is a history of scores. Pantograph's wager is that returning the score is worth more than returning the picture, and that the score is where design actually happens.
+
+The ancestor here is Ivan Sutherland's Sketchpad of 1963, the first system in which what the person manipulated was not the drawing but the constraints that generated it. Draw two lines, declare them parallel, and thereafter the machine maintains the relation while you move either line. Sketchpad was already allographic. Everything that followed in constraint-based and parametric CAD, including Grasshopper, is downstream of it. What an agent adds is the ability to author the constraints from a description rather than by hand, one relation at a time. What Pantograph insists on is that the agent author constraints and not their consequences.
+
+I should be exact about a limit. Goodman's notation has strict requirements: its characters must be syntactically disjoint and finitely differentiated, so that any mark can be assigned to exactly one character. A Grasshopper graph with continuous-valued sliders does not meet those requirements. It is not a notation in his strict sense but something between a notation and an autographic object, a score whose marks can be varied continuously. I do not think this weakens the argument. It locates the definition in an interesting place, closer to a score with an open cadenza than to a fully specified one, and the openness is what invites the hand back.
+
+*[Figure 3. A definition graph laid out as a score, with two performances beneath it: the geometry executed as written, and the geometry executed after a single value is changed.]*
+
+---
+
+## V. Temperature
+
+Marshall McLuhan, in *Understanding Media* (1964), sorted media by a property he called temperature. A hot medium is high in definition, densely filled with data, and low in participation; it leaves little for the audience to complete. A cool medium is low in definition and high in participation; it demands that the audience fill it in. The distinction is famously slippery and McLuhan applied it loosely. I use it as a lens, not a law, because it names something about design tools that the language of features does not.
+
+A rendered mesh is hot. It is saturated. Every surface is resolved, every reflection is placed, and the appropriate response to it is to look. A definition graph is cool. It is sparse. A few dozen nodes, a handful of sliders, wires between them. Nothing in it can be looked at for long, because it is not made to be looked at. It is made to be operated. The appropriate response to a definition is to reach in.
+
+The inversion is measurable. A mesh may carry a million vertices, which is a great deal of data, and zero editable structure. A definition may carry forty nodes, which is very little data, and complete editable structure. High definition, low participation; low definition, high participation. The mesh is hot and the graph is cool, and the temperature of the return is not a matter of taste. It tells the person what they are for. The message of a rendered mesh is that the work is done and you may receive it. The message of a definition is that the work is yours and you are expected to continue. McLuhan's most quoted sentence, that the medium is the message, is usually read as a claim about mass media. It is equally a claim about tools. What a CAD system returns tells you what kind of designer it thinks you are.
+
+The drift of the current field is toward heat. Each generation of text-to-3D system is more photoreal, more finished, more one-shot than the last. This is impressive and I do not think it is wrong for games, for visualisation, for the many uses in which the artifact is the end. But for design it is a drift away from designing. Design is participation in the formation of the thing. A tool that returns finished things has, whatever its quality, removed the designer from the part of the process where design occurs.
+
+---
+
+## VI. Program and referent
+
+Two philosophers of the technical image supply the warnings that the argument has to survive, and one modest mechanism in the prototype is the answer to both.
+
+Vilém Flusser, in *Towards a Philosophy of Photography* (1983), described the photographer as a functionary: someone who plays within the program of an apparatus. The camera's possibilities are inscribed in advance. The functionary explores them and realises some of them and believes themselves to be creating, but they cannot exceed the program. What one buys, Flusser says, is not the camera but the program. The warning transfers directly. A one-shot generative CAD tool makes the designer a functionary of the model. You receive what the latent space affords. You may prompt with skill, and skill will get you further into the program, but the program is the boundary of what you can make.
+
+Jean Baudrillard, in *Simulacra and Simulation* (1981), described a progression in which signs first represent a reality, then mask it, then mask its absence, and finally refer only to other signs, producing what he called the hyperreal: the generation by models of a real without origin. I want to be careful with him, because he is easy to caricature into the claim that everything digital is fake. The relevant point is narrower and sharper. A geometry generated from a prompt, with no process behind it, is a sign of design that has lost its referent. It looks designed. It has the surface features that designed things have. But nothing in it refers back to a constraint, a decision, a reason. It is, in Baudrillard's exact sense, a simulacrum of design: plausible form produced by a model, without the origin that the word design names.
+
+Here is the mechanism. Each node and each parameter in a Pantograph definition can carry a record of why it exists: a short label describing the role it plays, and a pointer to the clause of the prompt that called for it. Spacing, driven by span. Height, from the stated storey count. This costs almost nothing, a string and a reference. But it changes what the artifact is. The labelled node refuses the fate of the simulacrum. The geometry still points back to the span it answers and to the sentence that asked for it. The referent stays attached. And it partially answers Flusser, because the program is no longer sealed. The designer who can read why a node is there, and change it, has stepped from functionary toward author, at least locally.
+
+I say partially and locally on purpose. Exposing the graph does not open the black box. The space of graphs the agent is able to write is itself a program, shaped by training data and by the operations I gave it. The designer edits within that space. What Pantograph achieves against Flusser is mitigation, not liberation, and what it achieves against Baudrillard is that its output is a sign that still refers rather than a sign that refers to nothing. I think those are real achievements. I do not think they are the end of the problem, and Baudrillard, I suspect, would keep his doubt. He should be allowed to.
+
+There is an older and more affirmative way to say the same thing. Gilbert Simondon, in *On the Mode of Existence of Technical Objects* (1958), argued that technical objects should be understood through their genesis rather than their use, and that they develop by what he called concretization, from loose assemblies of parts each serving one function toward tightly integrated objects whose parts serve several functions at once. A definition has a genesis in a way a mesh does not. It carries the record of its coming into being, and that record is exactly what makes it revisable. Across successive edits, a definition concretizes: relations tighten, a parameter that once did one thing comes to coordinate several. Simondon meant concretization as a slow evolution across lineages of objects, not a working session, and I use the term by analogy. But the analogy holds where it matters. To design, for Simondon, is to participate in the genesis of the technical object. A machine that returns a finished form removes you from that genesis. A machine that returns a definition hands you back into it.
+
+*[Figure 4. A single definition node annotated with its role label and a pointer to the prompt clause that produced it.]*
+
+---
+
+## VII. Brittleness
+
+Everything above could be dismissed as philosophy applied after the fact to a technical choice. It is not, and the reason it is not is a documented failure in the practice that Pantograph serves.
+
+Daniel Davis, in his 2013 dissertation *Modelled on Software Engineering*, studied parametric models as they are actually used in architecture offices and found that they are brittle. Parameter values can be changed cheaply; that is what parameters are for. But when the topology of a project changes, when a wall is added, a bay removed, a structural logic replaced, the parametric model generally has to be remade. Practitioners told him that they routinely start over rather than untangle a model whose structure no longer fits. The flexibility that parametric design promises is flexibility along the axes the author anticipated. Off those axes, the model is more rigid than a hand drawing, because everything is connected to everything and a structural change propagates as breakage rather than as adaptation. Robert Woodbury's *Elements of Parametric Design* (2010) makes the related point that parametric modelling is a form of programming and inherits programming's maintenance costs.
+
+This is the engineering crux. The expensive operation in parametric design is not changing a value but changing a structure, and an agent that can write structures can, in principle, rewrite them. If the agent produces the definition, then the definition's topology is something it can be asked to alter. The bay removed, the wall added, the structural logic swapped: these become instructions to the agent rather than reasons to start from an empty canvas. The cost of the structural change falls, and with it the pressure to freeze decisions early. Davis observed that designers commit to a model's structure before they understand the consequences of that commitment because restructuring later is too expensive. An agent that lowers the restructuring cost lets the decision be deferred until it can be made well.
+
+I want to be precise about what the prototype does and does not achieve here. Pantograph writes definitions from language and supports editing of parameters and of individual nodes. Structural re-authoring of an existing definition, changing its topology in response to an intent the original structure cannot absorb, is the target the design is aimed at and the capability I regard as the most valuable research outcome. It is partial in the prototype. It works for small definitions and simple changes and degrades as the graph grows. I state this because the argument does not depend on the capability being finished. It depends on the capability being the right thing to build, and on the observation that the philosophical claim and the engineering claim are the same claim in two registers. Editable definitions preserve authorship and referent. Editable definitions reduce brittleness. Both sentences describe one property of one object.
+
+*[Figure 5. A topological change handled two ways: the manual path, in which the tangled definition is abandoned and rebuilt, and the agentic path, in which the agent rewrites the affected region of the graph.]*
+
+---
+
+## VIII. How it is built
+
+A researcher evaluating this work will want the mechanism, so here it is, at the level of the objects involved rather than the lines of code.
+
+The central object is the definition graph. Everything else in the system exists to produce it, execute it, present it, or modify it. A graph is a set of typed nodes, each corresponding to a Grasshopper operation with declared inputs and outputs; a set of parameters, each with a name, a type, a value and a range; and a set of directed edges that carry values from an output to an input. The graph is serialisable. It can be written to a file and read back, exported into a native Grasshopper definition and opened on a canvas, and inspected by a person or by the agent without executing it. This last property matters more than it sounds. A representation that can be inspected without being run is a representation about which one can reason, and reasoning about the definition rather than about the geometry is what makes editing tractable.
+
+The agent's relation to this object is deliberately narrow. It does not write the whole definition in one utterance. It is given a small set of operations: add a node of a given type, connect an output to an input, set a parameter, remove a node. Each operation is validated against the graph's schema before it is applied. The narrowness is a design choice with two justifications. Small operations make the agent's failures small and local, so that an error is a wrong edge rather than a wrong file. And small operations are the same operations a person uses, so the agent and the person edit the same object with the same verbs, which is what allows the conversation of section III to be a conversation rather than two monologues in different languages.
+
+The loop runs as follows. The person's intent is read and a plan is produced: a short description of the structure the definition will have and which parameters will be exposed. The plan is turned into a sequence of graph operations. The resulting graph is validated for structural coherence, executed in Rhino to produce geometry, and the outcome, including any failures, is returned to the agent. Where execution fails or produces geometry that contradicts the plan, the agent revises the graph and executes again. This plan, execute, verify, repair cycle is now the standard shape of reliable code-generating agents, and the reason it works is the same reason it is philosophically apt. It makes the definition, not the geometry, the thing that is corrected. When the cycle settles, the person is shown both the geometry and the graph, and their edits enter the same loop. The agent responds to the graph as the person has left it.
+
+Editability in the prototype exists at three levels, and I distinguish them because they are not equally achieved. Parameter-level editing, moving a slider and seeing geometry respond, is complete and is native to Grasshopper. Node-level editing, changing what an operation does or what it connects to, is supported and works in the cases I have tested. Topological re-authoring, asking the agent to restructure an existing definition, is the partial capability described in section VII. Provenance, the role label and prompt pointer on each node described in section VI, is recorded at authoring time and preserved through parameter and node edits; it is not yet reliably maintained through structural re-authoring, because when the agent rewrites a region of the graph the mapping from new nodes to original intent must be re-established, and that step is imperfect.
+
+Two limitations are worth stating plainly. The prototype depends on a running Rhino instance for execution, which constrains where it can be demonstrated; a browser-native rendering of the definition graph exists so that the structure, at least, can be seen and edited without a licence, and geometric preview outside Rhino is approximate. And the set of Grasshopper operations the agent can author is a subset of what the platform offers. It covers the core geometric and data-tree operations and does not extend into the ecosystem of community plugins. Both are engineering limits rather than conceptual ones, and I would rather name them than have them discovered.
+
+*[Figure 6. System diagram: intent, plan, definition graph as the central object, geometry engine, edit surface, with feedback edges from execution back to the agent and from the person's edits back into the loop.]*
+
+*[Figure 7. One plan, execute, verify, repair cycle as a sequence diagram.]*
+
+---
+
+## IX. Where it sits
+
+The field has, in the last three years, arrived at the same distinction this paper has been drawing, though it arrived by measurement rather than by argument. Work on machine generation of three-dimensional form now divides cleanly into two regimes. The first produces meshes, implicit surfaces or splats: the text-to-3D systems that generate game assets and visualisation models. Their output is not programmatically editable. The second produces programs: sequences of CAD commands, code in a geometric domain language, or constraint graphs, from which geometry is executed. Their output is editable by construction. The DeepCAD dataset of 2021, with its 178,000 models paired to the command sequences that built them, made the second regime trainable; Text2CAD in 2024 showed that command sequences could be produced from natural language at several levels of expertise; systems since then have added code generation, hierarchy-aware control, tool-using agents that operate CAD APIs, and self-correction loops that render the result and feed the image back to the model. The direction of the research is unmistakable. It is toward returning the program.
+
+Pantograph belongs to the second regime and to a specific corner of it. Most program-generating work targets mechanical CAD: sketches, extrusions, feature trees. Pantograph targets the visual dataflow graph of Grasshopper, which is the native parametric medium of architecture and which, unlike a linear command sequence, is already a graph a designer can see and touch. A small number of academic prototypes work in this corner, translating language into Grasshopper definitions or into Rhino geometry code. At least one commercial product does so as a paid tool with a substantial user base, writing native components directly onto the canvas, and it has established that the space is real and that practitioners will pay for it.
+
+This is why Pantograph is not a product and should not be read as one. As a product it would be behind on maturity and on reliability, and would be competing on the wrong ground. As research it offers what none of the products publish and few of the papers attempt: an explicit account of why the definition, and not the geometry, is the correct return, one that ties an engineering fact, Davis's brittleness, to a claim about notation, medium and authorship, and that treats the definition graph not as an intermediate on the way to a shape but as the first-class object and the argument itself. The contribution is the framing made executable. A researcher can evaluate that on its own terms, and can check the code against the claims.
+
+*[Figure 8. The field arranged by two axes: what is returned (mesh to program to graph) and how (one shot, conversation, agent loop), with Pantograph placed in the graph and agent-loop corner among its research neighbours.]*
+
+---
+
+## X. What a prototype can claim
+
+A prototype means a prototype. For the reader this paper is written for, exactness about that is more valuable than confidence, so I will end with an account rather than a flourish.
+
+Pantograph demonstrates that natural language can be translated into editable Grasshopper definitions rather than into finished geometry; that the definition graph can serve as the central, serialisable, inspectable object of an agentic system, with the agent and the person editing it through the same operations; that a plan, execute, verify, repair loop over that object produces definitions that run; that edits to parameters and nodes propagate through the geometry as the argument requires; and that a record of intent can be attached to each node cheaply enough that keeping the referent, in the sense of section VI, is a matter of engineering rather than aspiration.
+
+Pantograph partially demonstrates structural re-authoring of existing definitions, the capability that answers Davis most directly, in small cases with simple changes. It partially maintains provenance through such re-authoring. It covers a subset of the platform's operations.
+
+Pantograph does not claim benchmark results, because I have not run benchmarks that would justify a comparison, and I would rather say so than borrow the authority of a number. It does not claim production reliability or scale. It does not claim to have opened the black box of the model that writes the definitions; it claims to have moved the designer's point of contact from the model's output to the model's notation, which is a different and more defensible thing.
+
+Return, finally, to the linkage. The pantograph does not free the hand from the drawing, and it does not draw on its own. It holds the hand to the original while the copy forms in another register, and the copy remains, for as long as the linkage is engaged, something the hand can alter by moving. That is the arrangement of agency I think a design machine should have. The current generation of tools has built the camera: fast, plausible, finished, released from the hand at the moment of exposure. The argument of this paper, and the reason the prototype exists, is that design needs the other instrument. Not a machine that gives you the object, but one that gives you back the definition, with your hand still on it.
+
+---
+
+### Sources
+
+Ashby, W. Ross. *An Introduction to Cybernetics.* Chapman & Hall, 1956.
+Baudrillard, Jean. *Simulacra and Simulation.* 1981. Trans. Sheila Faria Glaser, University of Michigan Press, 1994.
+Carpo, Mario. *The Alphabet and the Algorithm.* MIT Press, 2011.
+Davis, Daniel. *Modelled on Software Engineering: Flexible Parametric Models in the Practice of Architecture.* PhD dissertation, RMIT University, 2013.
+Flusser, Vilém. *Towards a Philosophy of Photography.* 1983. Trans. Anthony Mathews, Reaktion, 2000.
+Goodman, Nelson. *Languages of Art: An Approach to a Theory of Symbols.* Bobbs-Merrill, 1968; 2nd ed. Hackett, 1976.
+Khan, Mohammad Sadil, et al. "Text2CAD: Generating Sequential CAD Designs from Beginner-to-Expert Level Text Prompts." NeurIPS, 2024.
+McLuhan, Marshall. *Understanding Media: The Extensions of Man.* McGraw-Hill, 1964.
+Negroponte, Nicholas. *The Architecture Machine.* MIT Press, 1970. *Soft Architecture Machines.* MIT Press, 1975.
+Pask, Gordon. "The Architectural Relevance of Cybernetics." *Architectural Design* 39, September 1969, 494 to 496. *Conversation Theory.* Elsevier, 1976.
+Simondon, Gilbert. *On the Mode of Existence of Technical Objects.* 1958. Trans. Cecile Malaspina and John Rogove, Univocal, 2017.
+Steenson, Molly Wright. *Architectural Intelligence: How Designers and Architects Created the Digital Landscape.* MIT Press, 2017.
+Sutherland, Ivan. *Sketchpad: A Man-Machine Graphical Communication System.* PhD dissertation, MIT, 1963.
+Terzidis, Kostas. *Algorithmic Architecture.* Architectural Press, 2006.
+von Foerster, Heinz. *Understanding Understanding: Essays on Cybernetics and Cognition.* Springer, 2003.
+Woodbury, Robert. *Elements of Parametric Design.* Routledge, 2010.
+Wu, Rundi, Chang Xiao, and Changxi Zheng. "DeepCAD: A Deep Generative Network for Computer-Aided Design Models." ICCV, 2021.

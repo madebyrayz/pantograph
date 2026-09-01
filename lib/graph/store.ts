@@ -59,7 +59,7 @@ export function mutateGraph(
   const graph = getGraph(id)
   const result = applyMutation(graph, mutation)
   if (result.ok) {
-    if (mutation.type !== "moveNode") {
+    if (mutation.type !== "moveNode" && mutation.type !== "resizeNode") {
       const log = getLog(id)
       log.push({
         version: result.version,
