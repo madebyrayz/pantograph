@@ -4,7 +4,7 @@ import * as React from "react"
 import ReactMarkdown from "react-markdown"
 
 /**
- * 05 — RESEARCH. The paper behind the prototype, served from /cms and
+ * 05 — RESEARCH. The research article behind the prototype, served from /cms and
  * read in a right-hand drawer. Sections render as bordered Swiss blocks
  * (numeral chip + band title), sources as a formatted register — no
  * bare horizontal rules.
@@ -110,7 +110,7 @@ export function Research({ markdown }: { markdown: string }) {
             onClick={() => setOpen(true)}
             className="border-2 border-border bg-foreground px-4 py-2.5 text-xs font-bold tracking-widest text-background transition-colors hover:bg-accent hover:text-black"
           >
-            READ THE PAPER →
+            READ THE ARTICLE →
           </button>
         </div>
       </div>
@@ -119,7 +119,7 @@ export function Research({ markdown }: { markdown: string }) {
       {open && (
         <div className="fixed inset-0 z-50">
           <button
-            aria-label="Close the paper"
+            aria-label="Close the article"
             onClick={() => setOpen(false)}
             className="absolute inset-0 cursor-default bg-foreground/40"
           />

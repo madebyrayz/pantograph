@@ -23,7 +23,7 @@ function loadPaper(): string {
       "utf-8"
     )
   } catch {
-    return "# The Editable Return\n\nThe paper is being prepared."
+    return "# The Editable Return\n\nThe article is being prepared."
   }
 }
 

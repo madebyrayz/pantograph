@@ -1,6 +1,6 @@
 # Architecture
 
-This document maps the paper's technical claims to the code, so each claim
+This document maps the article's technical claims to the code, so each claim
 can be verified rather than taken on faith.
 
 ## Claim 1 — The definition graph is the first-class intermediate representation
