@@ -1,0 +1,389 @@
+{
+ "graph": {
+  "id": "demo",
+  "nodes": [
+   {
+    "id": "frames",
+    "op": "StackedFrames",
+    "params": [
+     {
+      "name": "count",
+      "value": 50,
+      "range": [
+       1,
+       100
+      ],
+      "integer": true,
+      "provenance": {
+       "clause": "50 floor profiles",
+       "reason": "the vertical skeleton"
+      }
+     },
+     {
+      "name": "rise",
+      "value": 2.2,
+      "range": [
+       0.5,
+       20
+      ],
+      "provenance": {
+       "clause": "50 floor profiles",
+       "reason": "the vertical skeleton"
+      }
+     }
+    ],
+    "provenance": {
+     "clause": "50 floor profiles",
+     "reason": "the vertical skeleton"
+    }
+   },
+   {
+    "id": "plate",
+    "op": "Rectangle",
+    "params": [
+     {
+      "name": "width",
+      "value": 20,
+      "range": [
+       0.1,
+       200
+      ],
+      "provenance": {
+       "clause": "floor profiles",
+       "reason": "the section curve"
+      }
+     },
+     {
+      "name": "height",
+      "value": 20,
+      "range": [
+       0.1,
+       200
+      ],
+      "provenance": {
+       "clause": "floor profiles",
+       "reason": "the section curve"
+      }
+     }
+    ],
+    "provenance": {
+     "clause": "floor profiles",
+     "reason": "the section curve"
+    }
+   },
+   {
+    "id": "twist",
+    "op": "MathMap",
+    "params": [
+     {
+      "name": "factor",
+      "value": 3.2,
+      "range": [
+       -50,
+       50
+      ],
+      "provenance": {
+       "clause": "twist 3.2° per level",
+       "reason": "level index becomes rotation"
+      }
+     },
+     {
+      "name": "offset",
+      "value": 0,
+      "range": [
+       -100,
+       100
+      ]
+     }
+    ],
+    "provenance": {
+     "clause": "twist 3.2° per level",
+     "reason": "level index becomes rotation"
+    }
+   },
+   {
+    "id": "turn",
+    "op": "RotateEach",
+    "params": [],
+    "provenance": {
+     "clause": "twist",
+     "reason": "applies the rotation"
+    }
+   },
+   {
+    "id": "taper",
+    "op": "MathMap",
+    "params": [
+     {
+      "name": "factor",
+      "value": -0.012,
+      "range": [
+       -50,
+       50
+      ],
+      "provenance": {
+       "clause": "taper toward the top",
+       "reason": "level index becomes shrink factor"
+      }
+     },
+     {
+      "name": "offset",
+      "value": 1,
+      "range": [
+       -100,
+       100
+      ],
+      "provenance": {
+       "clause": "taper toward the top",
+       "reason": "level index becomes shrink factor"
+      }
+     }
+    ],
+    "provenance": {
+     "clause": "taper toward the top",
+     "reason": "level index becomes shrink factor"
+    }
+   },
+   {
+    "id": "shrink",
+    "op": "ScaleEach",
+    "params": [],
+    "provenance": {
+     "clause": "taper",
+     "reason": "applies the shrink about each plane"
+    }
+   },
+   {
+    "id": "skin",
+    "op": "Loft",
+    "params": [
+     {
+      "name": "cap",
+      "value": true,
+      "provenance": {
+       "clause": "loft a continuous skin",
+       "reason": "one surface through all sections"
+      }
+     }
+    ],
+    "provenance": {
+     "clause": "loft a continuous skin",
+     "reason": "one surface through all sections"
+    }
+   }
+  ],
+  "edges": [
+   {
+    "from": {
+     "node": "frames",
+     "port": "planes"
+    },
+    "to": {
+     "node": "plate",
+     "port": "planes"
+    }
+   },
+   {
+    "from": {
+     "node": "frames",
+     "port": "levels"
+    },
+    "to": {
+     "node": "twist",
+     "port": "values"
+    },
+    "semantics": "twist grows with level"
+   },
+   {
+    "from": {
+     "node": "plate",
+     "port": "curves"
+    },
+    "to": {
+     "node": "turn",
+     "port": "geometry"
+    }
+   },
+   {
+    "from": {
+     "node": "frames",
+     "port": "planes"
+    },
+    "to": {
+     "node": "turn",
+     "port": "planes"
+    }
+   },
+   {
+    "from": {
+     "node": "twist",
+     "port": "values"
+    },
+    "to": {
+     "node": "turn",
+     "port": "angles"
+    }
+   },
+   {
+    "from": {
+     "node": "frames",
+     "port": "levels"
+    },
+    "to": {
+     "node": "taper",
+     "port": "values"
+    },
+    "semantics": "shrink grows with level"
+   },
+   {
+    "from": {
+     "node": "turn",
+     "port": "geometry"
+    },
+    "to": {
+     "node": "shrink",
+     "port": "geometry"
+    }
+   },
+   {
+    "from": {
+     "node": "frames",
+     "port": "planes"
+    },
+    "to": {
+     "node": "shrink",
+     "port": "planes"
+    }
+   },
+   {
+    "from": {
+     "node": "taper",
+     "port": "values"
+    },
+    "to": {
+     "node": "shrink",
+     "port": "factors"
+    }
+   },
+   {
+    "from": {
+     "node": "shrink",
+     "port": "geometry"
+    },
+    "to": {
+     "node": "skin",
+     "port": "curves"
+    }
+   }
+  ],
+  "meta": {
+   "title": "tapered twist skin",
+   "createdAt": "2026-09-01T02:16:54.374Z",
+   "version": 17
+  }
+ },
+ "log": [
+  {
+   "version": 1,
+   "time": "2026-08-31T16:00:01.000Z",
+   "source": "agent",
+   "summary": "added frames (StackedFrames)"
+  },
+  {
+   "version": 2,
+   "time": "2026-08-31T16:00:02.000Z",
+   "source": "agent",
+   "summary": "added plate (Rectangle)"
+  },
+  {
+   "version": 3,
+   "time": "2026-08-31T16:00:03.000Z",
+   "source": "agent",
+   "summary": "added twist (MathMap)"
+  },
+  {
+   "version": 4,
+   "time": "2026-08-31T16:00:04.000Z",
+   "source": "agent",
+   "summary": "added turn (RotateEach)"
+  },
+  {
+   "version": 5,
+   "time": "2026-08-31T16:00:05.000Z",
+   "source": "agent",
+   "summary": "added taper (MathMap)"
+  },
+  {
+   "version": 6,
+   "time": "2026-08-31T16:00:06.000Z",
+   "source": "agent",
+   "summary": "added shrink (ScaleEach)"
+  },
+  {
+   "version": 7,
+   "time": "2026-08-31T16:00:07.000Z",
+   "source": "agent",
+   "summary": "added skin (Loft)"
+  },
+  {
+   "version": 8,
+   "time": "2026-08-31T16:00:08.000Z",
+   "source": "agent",
+   "summary": "wired frames.planes → plate.planes"
+  },
+  {
+   "version": 9,
+   "time": "2026-08-31T16:00:09.000Z",
+   "source": "agent",
+   "summary": "wired frames.levels → twist.values"
+  },
+  {
+   "version": 10,
+   "time": "2026-08-31T16:00:10.000Z",
+   "source": "agent",
+   "summary": "wired plate.curves → turn.geometry"
+  },
+  {
+   "version": 11,
+   "time": "2026-08-31T16:00:11.000Z",
+   "source": "agent",
+   "summary": "wired frames.planes → turn.planes"
+  },
+  {
+   "version": 12,
+   "time": "2026-08-31T16:00:12.000Z",
+   "source": "agent",
+   "summary": "wired twist.values → turn.angles"
+  },
+  {
+   "version": 13,
+   "time": "2026-08-31T16:00:13.000Z",
+   "source": "agent",
+   "summary": "wired frames.levels → taper.values"
+  },
+  {
+   "version": 14,
+   "time": "2026-08-31T16:00:14.000Z",
+   "source": "agent",
+   "summary": "wired turn.geometry → shrink.geometry"
+  },
+  {
+   "version": 15,
+   "time": "2026-08-31T16:00:15.000Z",
+   "source": "agent",
+   "summary": "wired frames.planes → shrink.planes"
+  },
+  {
+   "version": 16,
+   "time": "2026-08-31T16:00:16.000Z",
+   "source": "agent",
+   "summary": "wired taper.values → shrink.factors"
+  },
+  {
+   "version": 17,
+   "time": "2026-08-31T16:00:17.000Z",
+   "source": "agent",
+   "summary": "wired shrink.geometry → skin.curves"
+  }
+ ]
+}

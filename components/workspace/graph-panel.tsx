@@ -80,6 +80,8 @@ export function GraphPanel({
   onCaptured,
   onLog,
   refreshKey,
+  staticGraph,
+  onBlocked,
 }: {
   /** called when a re-execution produced a fresh viewport capture */
   onCaptured: () => void
@@ -87,6 +89,10 @@ export function GraphPanel({
   onLog?: (log: ChangeEntry[]) => void
   /** bump to force an immediate refetch (e.g. when an agent turn ends) */
   refreshKey: number
+  /** hosted preview: render this definition, never talk to the server */
+  staticGraph?: unknown
+  /** hosted preview: called when an interaction would need the local stack */
+  onBlocked?: () => void
 }) {
   const [graph, setGraph] = React.useState<Graph | null>(null)
   const [issues, setIssues] = React.useState<Issue[]>([])
@@ -108,7 +114,17 @@ export function GraphPanel({
 
   /* ── execution ─────────────────────────────────────────────── */
 
+  const staticMode = !!staticGraph
+  const onBlockedRef = React.useRef(onBlocked)
+  React.useEffect(() => {
+    onBlockedRef.current = onBlocked
+  })
+
   const execute = React.useCallback(async () => {
+    if (staticMode) {
+      onBlockedRef.current?.()
+      return
+    }
     setExec({ kind: "running" })
     try {
       const res = await fetch("/api/graph/execute", {
@@ -126,7 +142,7 @@ export function GraphPanel({
     } catch {
       setExec({ kind: "error", errors: ["app unreachable"] })
     }
-  }, [])
+  }, [staticMode])
 
   const scheduleExecute = React.useCallback(() => {
     if (execTimer.current) clearTimeout(execTimer.current)
@@ -137,6 +153,7 @@ export function GraphPanel({
 
   const postMutation = React.useCallback(
     async (mutation: Record<string, unknown>) => {
+      if (staticMode) return null
       try {
         const res = await fetch("/api/graph", {
           method: "POST",
@@ -152,11 +169,15 @@ export function GraphPanel({
         return null
       }
     },
-    []
+    [staticMode]
   )
 
   const onParam = React.useCallback(
     async (nodeId: string, name: string, value: number) => {
+      if (staticMode) {
+        onBlockedRef.current?.()
+        return
+      }
       setGraph((g) => {
         if (!g) return g
         const next = structuredClone(g)
@@ -173,7 +194,7 @@ export function GraphPanel({
       }
       scheduleExecute()
     },
-    [postMutation, scheduleExecute]
+    [postMutation, scheduleExecute, staticMode]
   )
 
   /* ── server sync ───────────────────────────────────────────── */
@@ -219,10 +240,20 @@ export function GraphPanel({
   )
 
   React.useEffect(() => {
+    if (staticMode) {
+      const g = staticGraph as Graph
+      versionRef.current = g.meta.version
+      setGraph(g)
+      setIssues([])
+      setExec({ kind: "offline" })
+      rebuild(g)
+      return
+    }
     fetchGraph(true)
     const t = setInterval(() => fetchGraph(), 2500)
     return () => clearInterval(t)
-  }, [fetchGraph, refreshKey])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchGraph, refreshKey, staticMode])
 
   /* ── canvas interactions ───────────────────────────────────── */
 
@@ -244,6 +275,10 @@ export function GraphPanel({
 
   const onEdgesDelete = React.useCallback(
     async (edges: FlowEdge[]) => {
+      if (staticMode) {
+        onBlockedRef.current?.()
+        return
+      }
       for (const e of edges)
         await postMutation({
           type: "disconnect",
@@ -252,21 +287,29 @@ export function GraphPanel({
       await fetchGraph(true)
       scheduleExecute()
     },
-    [postMutation, fetchGraph, scheduleExecute]
+    [postMutation, fetchGraph, scheduleExecute, staticMode]
   )
 
   const onNodesDelete = React.useCallback(
     async (nodes: FlowNode[]) => {
+      if (staticMode) {
+        onBlockedRef.current?.()
+        return
+      }
       for (const n of nodes)
         await postMutation({ type: "removeNode", id: n.id })
       await fetchGraph(true)
       scheduleExecute()
     },
-    [postMutation, fetchGraph, scheduleExecute]
+    [postMutation, fetchGraph, scheduleExecute, staticMode]
   )
 
   const onConnect = React.useCallback(
     async (conn: Connection) => {
+      if (staticMode) {
+        onBlockedRef.current?.()
+        return
+      }
       if (!conn.source || !conn.target || !conn.sourceHandle || !conn.targetHandle)
         return
       const data = await postMutation({
@@ -282,7 +325,7 @@ export function GraphPanel({
         scheduleExecute()
       }
     },
-    [postMutation, rebuild, scheduleExecute]
+    [postMutation, rebuild, scheduleExecute, staticMode]
   )
 
   const errors = issues.filter((i) => i.level === "error")

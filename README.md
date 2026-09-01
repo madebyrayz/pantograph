@@ -1,80 +1,84 @@
-# Pantograph
+<p align="center">
+  <img src="public/brand/mark-black-512.png#gh-light-mode-only" width="88" alt="Pantograph mark" />
+  <img src="public/brand/mark-white-512.png#gh-dark-mode-only" width="88" alt="Pantograph mark" />
+</p>
 
-**An agentic CAD system that writes definitions, not objects.** A research
-prototype by [Ray Zhang](https://rayzlz.com) — this is early, incomplete
-work, and says so.
+<h1 align="center">Pantograph</h1>
 
-Most systems that turn language into 3D return a finished thing: a mesh, a
-shape, a closed artifact. Pantograph returns something else — an **editable
-definition graph**: typed nodes, tunable parameters, and edges that carry
-values between them, each element annotated with the prompt clause it
-answers. The agent authors the definition; a person rewires and retunes it;
-the definition is performed into native Rhino geometry. The wager is that
-the value of an AI design system lies not in the artifact it returns but in
-the structure it leaves behind for a person to revise.
+<p align="center"><strong>Intelligence Aided Design</strong> — an agentic CAD workspace that writes editable definitions, not objects.</p>
 
-```
-chat ──► agent (claude CLI) ──MCP──► narrow graph tools
-                                        │  add node · connect · set param
-graph editor (browser) ◄── definition graph ── the first-class object
-                                        │  compile → rhinoscriptsyntax
-                                        ▼
-                              Rhino 8 (live document, loopback TCP)
-```
+<p align="center">
+  <a href="https://www.pantograph.ai">pantograph.ai</a> ·
+  <a href="ARCHITECTURE.md">architecture</a> ·
+  <a href="#quick-start">quick start</a> ·
+  <a href="LICENSE">Apache-2.0</a>
+</p>
 
-## Setup (under ten minutes)
+---
 
-Requirements: Node 20+, pnpm, Python 3, and the
-[`claude` CLI](https://claude.com/claude-code) logged in (the agent runs on
-your Claude subscription; no API keys are stored anywhere in this repo).
+Most systems that turn language into 3D return a finished thing: a mesh, a render, a closed artifact. Pantograph returns the structure that produces things — a **definition graph** of typed nodes, tunable parameters, and wires, performed into native Rhino geometry and left open for you to re-author. The agent and the designer edit the same graph with the same operations.
+
+<p align="center">
+  <img src="public/landing/demo-session.gif" width="720" alt="A twist parameter swept from 0° to 6°, each frame re-performed live in Rhino" />
+  <br />
+  <sub>One parameter swept 0→6° — every frame is a real re-execution in Rhino 8.</sub>
+</p>
+
+## What it does
+
+- **Language → definition.** Describe intent in plain language; the agent plans it and authors a graph through narrow, validated mutations (`add node`, `connect`, `set param`) — never baked geometry.
+- **A canvas you own.** Drag nodes, wire ports, pull sliders, delete edges, resize, group-select. Every edit recompiles and re-performs in the live Rhino document.
+- **Verify, then hand back.** The agent executes its definition, looks at a viewport capture of the result, repairs, and returns the graph to you. Every change — agent or designer — lands in a shared change log with provenance: which prompt clause each node answers, and why it exists.
+- **Local by design.** Rhino, the agent, and your files stay on your machine. The bridge is loopback TCP; nothing is uploaded.
+
+## Quick start
+
+Requirements: Node 20+, pnpm, Python 3, Rhino 8, and the [claude](https://claude.com/claude-code) CLI (logged in — the agent runs on your Claude subscription; no API keys are stored in this repo).
 
 ```bash
+git clone https://github.com/madebyrayz/pantograph-iad.git
+cd pantograph-iad
 pnpm install
 pnpm dev
 ```
 
-Open http://localhost:3000 — the landing page — and http://localhost:3000/demo
-— the workspace. **Rhino is optional**: without it the agent still authors
-the definition graph and you can still edit it; execution and viewport
-captures switch on when Rhino connects.
+Then connect Rhino: open Rhino 8, type `ScriptEditor`, run `rhino_side/pantograph_listener.py`, and leave Rhino open. Open [localhost:3000/demo](http://localhost:3000/demo) and describe something to model.
 
-To connect Rhino 8: type `ScriptEditor` in Rhino, open
-`rhino_side/pantograph_listener.py`, press Run, and leave Rhino open.
-To develop without Rhino: `PANTOGRAPH_MOCK_PORT=9877 python3 mock_rhino.py`.
+**No Rhino?** The workspace still runs — the definition graph stays authorable, editable, and validatable; geometry waits until Rhino connects. To develop against a fake listener: `PANTOGRAPH_MOCK_PORT=9877 python3 mock_rhino.py`.
 
-## What is where
+## How it works
 
-| Path | What it is |
+```
+conversation ──► agent (claude CLI) ──MCP──► narrow graph tools
+                                                │  add node · connect · set param
+canvas (React Flow) ◄──── definition graph ─────┘  the first-class object
+                                                │  compile → rhinoscriptsyntax
+                                                ▼
+                                    Rhino 8 (live document, loopback TCP)
+```
+
+| Path | Role |
 |---|---|
-| `lib/graph/` | The definition graph: schema, op catalog, validation, mutations, compiler, store |
-| `app/api/graph/` | Graph read / mutate / execute endpoints (used by both the agent and the editor) |
-| `app/api/chat/` | Spawns the agent per message and streams its loop to the browser |
-| `mcp_server.py` | MCP server exposing the narrow graph tools to the agent |
+| `lib/graph/` | The definition graph: schema, op catalog, validation, mutations, compiler, versioned store |
+| `app/api/graph/` | Graph read / mutate / execute endpoints, shared by agent and canvas |
+| `app/api/chat/` | Runs the agent per message and streams its loop to the browser |
+| `mcp_server.py` | MCP server exposing the graph tools to the agent |
 | `rhino_side/pantograph_listener.py` | The listener that runs inside Rhino |
-| `components/workspace/graph-panel.tsx` | The browser graph editor (edit a param, geometry re-forms) |
+| `components/workspace/` | The canvas: edit a parameter, geometry re-forms |
 | `eval/` | Internal structural checks (not a benchmark) |
+| `cms/` | The research paper, rendered at pantograph.ai |
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces meet the claims.
+[ARCHITECTURE.md](ARCHITECTURE.md) maps each research claim to the code that implements it.
 
-## What this prototype demonstrates — and does not
+## Scope and honesty
 
-Demonstrated: language → editable definition is feasible in the Rhino
-context; the definition graph can be the system's central, inspectable
-object; human edits propagate through compilation to geometry; every node
-records why it exists.
-
-Not demonstrated: benchmark results (none are claimed), production
-reliability, scale, Grasshopper `.gh` emission (the graph compiles to
-rhinoscriptsyntax; GHX export is future work), and topological
-re-authoring of an existing definition (named as future work, not solved).
+Demonstrated: language to editable definition; the graph as the system's central, inspectable object; edits that propagate to live geometry; per-node provenance. Not demonstrated: benchmark results, production reliability, Grasshopper `.gh` emission (the graph compiles to rhinoscriptsyntax), and topological re-authoring of existing definitions — both named as future work, not claimed.
 
 ## Research
 
-The accompanying paper argues the thesis through cybernetics (Pask,
-Negroponte), notation theory (Goodman, Carpo), media theory (McLuhan,
-Flusser, Baudrillard), and the documented brittleness of parametric models
-in practice (Davis 2013). Read more at [pantograph.ai](https://www.pantograph.ai).
+The accompanying paper, *The Editable Return*, argues the design position through cybernetics, notation theory, media theory, and the documented brittleness of parametric models in practice. Read it at [pantograph.ai](https://www.pantograph.ai).
 
 ## License
 
-[Apache 2.0](LICENSE). Cite via [CITATION.cff](CITATION.cff).
+[Apache-2.0](LICENSE). Cite via [CITATION.cff](CITATION.cff).
+Bugs and ideas: [info@pantograph.ai](mailto:info@pantograph.ai).

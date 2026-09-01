@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useTheme } from "next-themes"
 
 /**
- * Hero — ported from the original pantograph.ai (madebyrayz/v0-pantograph)
+ * Hero — ported from the original pantograph.ai (madebyrayz/pantograph-iad)
  * and extended: byline link, multi-phrase typing status, section links.
  * Typing effect, breathing dots, dark toggle, and the accent-color
  * randomizer are preserved from the original.

@@ -4,9 +4,12 @@ import * as React from "react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
 
+import demoDefinition from "@/lib/graph/demo-definition.json"
 import studiesData from "@/lib/graph/studies.json"
 import { GraphPanel, type ChangeEntry } from "@/components/workspace/graph-panel"
 import { cn } from "@/lib/utils"
+
+const REPO_URL = "https://github.com/madebyrayz/pantograph-iad"
 
 /**
  * The Pantograph workspace: conversation → definition graph → live Rhino.
@@ -67,12 +70,23 @@ export default function Workspace() {
   const [agent, setAgent] = React.useState<boolean | null>(null)
   const [guide, setGuide] = React.useState(false)
   const [hosted, setHosted] = React.useState(false)
+  const [popup, setPopup] = React.useState(false)
 
   /* hosted preview (pantograph.ai / vercel): agent + Rhino live on the
-     designer's machine, so the workspace is browsable but not runnable */
+     designer's machine — the workspace becomes an automated preview and
+     any real interaction explains how to run it locally */
   React.useEffect(() => {
     const h = window.location.hostname
-    setHosted(h.endsWith("pantograph.ai") || h.endsWith("vercel.app"))
+    const isHosted =
+      h.endsWith("pantograph.ai") ||
+      h.endsWith("vercel.app") ||
+      new URLSearchParams(window.location.search).has("hosted")
+    setHosted(isHosted)
+    if (isHosted) {
+      setLog(demoDefinition.log as ChangeEntry[])
+      setCaptures([{ url: "/landing/demo-session.gif", time: "PREVIEW LOOP" }])
+      setModel("runs on your machine")
+    }
   }, [])
 
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -360,7 +374,7 @@ export default function Workspace() {
             HOSTED PREVIEW — THE AGENT AND RHINO RUN ON YOUR OWN MACHINE
           </span>
           <a
-            href="https://github.com/madebyrayz/v0-pantograph"
+            href="https://github.com/madebyrayz/pantograph-iad"
             target="_blank"
             rel="noreferrer"
             className="shrink-0 text-[10px] font-bold tracking-widest text-black underline underline-offset-2 hover:opacity-60"
@@ -374,7 +388,7 @@ export default function Workspace() {
       <main className="flex min-h-0 flex-1">
         {/* 01 conversation */}
         <section className="flex w-full min-w-0 flex-col lg:w-[380px] lg:shrink-0 lg:border-r-2 lg:border-border">
-          <PanelBand n="01" title="CONVERSATION">
+          <PanelBand n="01" title={hosted ? "CONVERSATION — AUTOMATED PREVIEW" : "CONVERSATION"}>
             {busy && (
               <span className="ml-auto animate-pulse text-[9px] font-bold tracking-widest opacity-60">
                 {activity ?? "WORKING"}…
@@ -387,7 +401,9 @@ export default function Workspace() {
             onScroll={onScroll}
             className="flex-1 overflow-y-auto p-3"
           >
-            {items.length === 0 ? (
+            {hosted ? (
+              <AutoPreview />
+            ) : items.length === 0 ? (
               <Welcome onPick={send} />
             ) : (
               <div className="flex flex-col gap-2.5">
@@ -410,8 +426,20 @@ export default function Workspace() {
             <div className="flex items-end gap-0 border-2 border-border bg-background">
               <textarea
                 value={input}
+                readOnly={hosted}
+                onFocus={(e) => {
+                  if (hosted) {
+                    e.currentTarget.blur()
+                    setPopup(true)
+                  }
+                }}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
+                  if (hosted) {
+                    e.preventDefault()
+                    setPopup(true)
+                    return
+                  }
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
                     send(input)
@@ -422,8 +450,8 @@ export default function Workspace() {
                 className="max-h-36 flex-1 resize-none bg-transparent px-2.5 py-2 text-[12px] font-medium outline-none placeholder:text-[10px] placeholder:font-bold placeholder:tracking-widest placeholder:opacity-40"
               />
               <button
-                onClick={() => send(input)}
-                disabled={busy || !input.trim()}
+                onClick={() => (hosted ? setPopup(true) : send(input))}
+                disabled={!hosted && (busy || !input.trim())}
                 className="self-stretch border-l-2 border-border bg-foreground px-3 text-[10px] font-bold tracking-widest text-background transition-colors hover:bg-accent hover:text-black disabled:opacity-40 disabled:hover:bg-foreground disabled:hover:text-background"
               >
                 RUN ↵
@@ -442,7 +470,9 @@ export default function Workspace() {
             <GraphPanel
               refreshKey={graphRefresh}
               onCaptured={addCapture}
-              onLog={setLog}
+              onLog={hosted ? undefined : setLog}
+              staticGraph={hosted ? demoDefinition.graph : undefined}
+              onBlocked={() => setPopup(true)}
             />
           </div>
         </section>
@@ -478,6 +508,7 @@ export default function Workspace() {
       </main>
 
       {guide && <Guide rhino={rhino} agent={agent} onClose={dismissGuide} />}
+      {popup && <HostedPopup onClose={() => setPopup(false)} />}
     </div>
   )
 }
@@ -529,6 +560,142 @@ function ThemeDot() {
       className="size-3 animate-blink cursor-pointer rounded-full bg-foreground transition-transform hover:scale-110"
       aria-label="Toggle dark mode"
     />
+  )
+}
+
+/* ── hosted preview: auto-playing conversation + interaction popup ── */
+
+type PreviewStep =
+  | { kind: "user"; text: string }
+  | { kind: "agent"; text: string }
+  | { kind: "tool"; name: string }
+
+const PREVIEW_SCRIPTS: PreviewStep[][] = [
+  [
+    { kind: "user", text: "Loft a continuous skin over 50 floor profiles that twist and taper toward the top." },
+    { kind: "agent", text: "I'll author this as a definition — frames, twist, taper, then one lofted skin." },
+    { kind: "tool", name: "graph_add_node" },
+    { kind: "tool", name: "graph_connect" },
+    { kind: "tool", name: "graph_execute" },
+    { kind: "agent", text: "Done — a 7-node definition. The twist parameter drives the whole skin; the sweep runs live in the viewport panel." },
+  ],
+  [
+    { kind: "user", text: "Make the twist stronger and taper less." },
+    { kind: "tool", name: "graph_set_param" },
+    { kind: "tool", name: "graph_set_param" },
+    { kind: "tool", name: "graph_execute" },
+    { kind: "agent", text: "Twist raised to 5° per level, taper eased. Same definition, re-performed — nothing was regenerated from scratch." },
+  ],
+]
+
+function AutoPreview() {
+  const [scriptIdx, setScriptIdx] = React.useState(0)
+  const [count, setCount] = React.useState(0)
+  const script = PREVIEW_SCRIPTS[scriptIdx]
+
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      if (count < script.length) setCount((c) => c + 1)
+      else {
+        setScriptIdx((i) => (i + 1) % PREVIEW_SCRIPTS.length)
+        setCount(0)
+      }
+    }, count === 0 ? 1200 : count >= script.length ? 4000 : 1100)
+    return () => clearTimeout(t)
+  }, [count, script.length])
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="border-2 border-border bg-secondary/30 px-2.5 py-1.5 text-[9px] font-bold tracking-widest opacity-70">
+        AUTOMATED PREVIEW — A RECORDED SESSION REPLAYS BELOW. RUN IT FOR REAL
+        ON YOUR OWN MACHINE.
+      </div>
+      {script.slice(0, count).map((step, i) => {
+        if (step.kind === "user")
+          return (
+            <div key={`${scriptIdx}-${i}`} className="ml-auto max-w-[88%] animate-[fadeup_.35s_ease-out] border-2 border-border bg-foreground px-2.5 py-1.5 text-[12px] font-semibold text-background">
+              {step.text}
+            </div>
+          )
+        if (step.kind === "agent")
+          return (
+            <div key={`${scriptIdx}-${i}`} className="max-w-[92%] animate-[fadeup_.35s_ease-out] text-[12px] font-medium leading-relaxed">
+              <span className="mr-1.5 bg-accent px-1 text-[9px] font-bold tracking-wider text-black">
+                AGENT
+              </span>
+              {step.text}
+            </div>
+          )
+        return (
+          <div key={`${scriptIdx}-${i}`} className="flex w-fit animate-[fadeup_.35s_ease-out] items-center gap-2 border-2 border-border bg-background px-2 py-1 font-mono text-[10px] font-bold">
+            ⌁ {step.name.toUpperCase()}
+            <span className="bg-foreground px-1 text-[8px] text-background">OK</span>
+          </div>
+        )
+      })}
+      {count < script.length && (
+        <div className="text-[9px] font-bold tracking-widest opacity-40">
+          <span className="inline-block h-3 w-2 animate-blink bg-foreground align-middle" />{" "}
+          REPLAYING
+        </div>
+      )}
+    </div>
+  )
+}
+
+function HostedPopup({ onClose }: { onClose: () => void }) {
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
+
+  return (
+    <div className="absolute inset-0 z-50 grid place-items-center bg-foreground/40 p-4">
+      <div className="w-full max-w-[480px] border-2 border-border bg-background">
+        <div className="flex items-center justify-between border-b-2 border-border bg-muted px-4 py-2">
+          <span className="text-[11px] font-bold tracking-widest">HOSTED PREVIEW</span>
+          <button
+            onClick={onClose}
+            className="border-2 border-border bg-background px-2 py-0.5 text-xs font-bold transition-colors hover:bg-foreground hover:text-background"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="border-b-2 border-border bg-accent px-4 py-2.5">
+          <p className="text-sm font-bold leading-snug tracking-tight text-black">
+            THE AGENT AND RHINO RUN ON YOUR OWN MACHINE — THIS PAGE IS A
+            PREVIEW.
+          </p>
+        </div>
+        <div className="border-b-2 border-border px-4 py-3">
+          <p className="text-[11px] font-medium leading-relaxed opacity-80">
+            To use the full workspace: clone the repository, run{" "}
+            <Kbd>pnpm install && pnpm dev</Kbd>, open Rhino 8 and run the
+            listener, and log in to the <Kbd>claude</Kbd> CLI. Setup takes
+            about ten minutes and everything stays on your machine.
+          </p>
+        </div>
+        <div className="flex items-center justify-between bg-muted px-4 py-2">
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="border-2 border-border bg-foreground px-3 py-1.5 text-[10px] font-bold tracking-widest text-background transition-colors hover:bg-accent hover:text-black"
+          >
+            VIEW ON GITHUB →
+          </a>
+          <button
+            onClick={onClose}
+            className="text-[10px] font-bold tracking-widest underline underline-offset-2 hover:opacity-60"
+          >
+            KEEP BROWSING
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
