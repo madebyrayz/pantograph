@@ -38,6 +38,14 @@ def _run_on_ui_thread(fn):
 
     def wrapper():
         try:
+            # A long-running listener outlives document switches: rebind the
+            # scriptcontext to whatever document is active right now.
+            active = Rhino.RhinoDoc.ActiveDoc
+            if active is None:
+                raise RuntimeError(
+                    "No document is open in Rhino — open or create one "
+                    "(File > New), then try again.")
+            sc.doc = active
             box["result"] = fn()
         except Exception as e:
             box["error"] = e

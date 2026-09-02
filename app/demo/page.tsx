@@ -2,12 +2,12 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useTheme } from "next-themes"
 
 import studiesData from "@/lib/graph/studies.json"
 import { emptyGraph, type DefinitionGraph } from "@/lib/graph/schema"
 import { applyMutation, describeMutation, type Mutation } from "@/lib/graph/mutate"
 import { GraphPanel, type ChangeEntry } from "@/components/workspace/graph-panel"
+import { LibraryPanel, Rail } from "@/components/workspace/rail"
 import { cn } from "@/lib/utils"
 
 const REPO_URL = "https://github.com/madebyrayz/pantograph"
@@ -34,8 +34,20 @@ type TextItem = {
   text: string
   streaming?: boolean
 }
-type CaptureItem = { kind: "capture"; id: number; url: string; time: string }
-type Item = ToolItem | TextItem | CaptureItem
+type CaptureItem = {
+  kind: "capture"
+  id: number
+  url: string
+  time: string
+  version?: number
+}
+type TurnItem = {
+  kind: "turn"
+  id: number
+  duration: number
+  steps: { name: string; internal: boolean; status: ToolItem["status"] }[]
+}
+type Item = ToolItem | TextItem | CaptureItem | TurnItem
 type Capture = { url: string; time: string }
 
 let nextId = 1
@@ -53,6 +65,18 @@ const SUGGESTIONS = (studiesData.studies as { key: string; prompt: string }[])
   .map((s) => s.prompt)
 
 const ONBOARD_KEY = "pantograph.onboarded"
+
+/* contextual follow-ups offered after a completed turn */
+const IDEA_POOL = [
+  "Push the twist further",
+  "Taper it harder toward the top",
+  "Double the floor count",
+  "Array three variants side by side",
+  "Rebuild it as a lofted skin",
+  "Swap the profile for circles",
+  "Scatter it into a phyllotaxis field",
+  "Wrap a helix of spheres around it",
+]
 
 /* ── page ────────────────────────────────────────────────────── */
 
@@ -72,6 +96,11 @@ export default function Workspace() {
   const [guide, setGuide] = React.useState(false)
   const [hosted, setHosted] = React.useState(false)
   const [popup, setPopup] = React.useState(false)
+  const [libraryOpen, setLibraryOpen] = React.useState(false)
+  const [ideas, setIdeas] = React.useState<string[]>([])
+  const [elapsed, setElapsed] = React.useState(0)
+  const versionRef = React.useRef(0)
+  const turnCountRef = React.useRef(0)
   const [hostedChat, setHostedChat] = React.useState<PreviewStep[]>([])
   const [hostedGraph, setHostedGraph] = React.useState<DefinitionGraph | null>(null)
   const showGraphRef = React.useRef<DefinitionGraph | null>(null)
@@ -220,6 +249,15 @@ export default function Workspace() {
     }
   }, [])
 
+  /* working timer for the conversation band */
+  React.useEffect(() => {
+    if (!busy) return
+    const start = Date.now()
+    setElapsed(0)
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    return () => clearInterval(t)
+  }, [busy])
+
   React.useEffect(() => {
     const el = scrollRef.current
     if (el && stickToBottom.current) el.scrollTop = el.scrollHeight
@@ -234,6 +272,18 @@ export default function Workspace() {
   const patch = (id: number, fn: (it: Item) => Item) =>
     setItems((prev) => prev.map((it) => (it.id === id ? fn(it) : it)))
 
+  const lastCaptureId = React.useMemo(() => {
+    for (let i = items.length - 1; i >= 0; i--)
+      if (items[i].kind === "capture") return items[i].id
+    return -1
+  }, [items])
+
+  const handleLog = React.useCallback((l: ChangeEntry[]) => {
+    setLog(l)
+    const last = l[l.length - 1]
+    if (last) versionRef.current = last.version
+  }, [])
+
   const addCapture = React.useCallback((opts?: { inline?: boolean }) => {
     const url = `/api/viewport?t=${Date.now()}`
     const time = new Date().toLocaleTimeString([], {
@@ -241,7 +291,10 @@ export default function Workspace() {
     })
     setCaptures((prev) => [{ url, time }, ...prev].slice(0, 12))
     if (opts?.inline)
-      setItems((prev) => [...prev, { kind: "capture", id: nextId++, url, time }])
+      setItems((prev) => [
+        ...prev,
+        { kind: "capture", id: nextId++, url, time, version: versionRef.current || undefined },
+      ])
   }, [])
 
   /* ── agent conversation (SSE) ──────────────────────────────── */
@@ -251,9 +304,12 @@ export default function Workspace() {
     setBusy(true)
     setActivity("THINKING")
     setInput("")
+    setIdeas([])
     stickToBottom.current = true
     setItems((prev) => [...prev, { kind: "user", id: nextId++, text }])
 
+    const turnStart = Date.now()
+    const turnToolIds: number[] = []
     let streamId: number | null = null
     let toolId: number | null = null
     let turnHadText = false
@@ -311,6 +367,7 @@ export default function Workspace() {
           setActivity(internal ? "PREPARING TOOLS" : name.toUpperCase())
           const id = nextId++
           toolId = id
+          turnToolIds.push(id)
           const input = d.input as Record<string, unknown> | undefined
           setItems((prev) => [
             ...prev,
@@ -402,6 +459,54 @@ export default function Workspace() {
     closeStream()
     setBusy(false)
     setActivity(null)
+
+    // collapse this turn's tool calls into a worked-for summary
+    if (turnToolIds.length >= 3) {
+      const duration = Math.max(1, Math.round((Date.now() - turnStart) / 1000))
+      const idSet = new Set(turnToolIds)
+      setItems((prev) => {
+        const steps = prev
+          .filter((it): it is ToolItem => it.kind === "tool" && idSet.has(it.id))
+          .map((t) => ({ name: t.name, internal: t.internal, status: t.status }))
+        if (!steps.length) return prev
+        const firstIdx = prev.findIndex((it) => it.kind === "tool" && idSet.has(it.id))
+        const rest = prev.filter((it) => !(it.kind === "tool" && idSet.has(it.id)))
+        const summary: TurnItem = { kind: "turn", id: nextId++, duration, steps }
+        rest.splice(firstIdx, 0, summary)
+        return rest
+      })
+    }
+    // offer follow-ups when the turn actually authored something
+    if (turnToolIds.length > 0) {
+      const base = (turnCountRef.current++ * 3) % IDEA_POOL.length
+      setIdeas([0, 1, 2].map((k) => IDEA_POOL[(base + k) % IDEA_POOL.length]))
+    }
+  }
+
+  async function loadStudy(key: string) {
+    setLibraryOpen(false)
+    if (hosted) {
+      setPopup(true)
+      return
+    }
+    try {
+      const res = await fetch("/api/graph/library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      })
+      if (!res.ok) return
+      setGraphRefresh((r) => r + 1)
+      const run = await fetch("/api/graph/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      const data = await run.json().catch(() => ({}))
+      if (data?.captured) addCapture()
+    } catch {
+      /* library load is best-effort */
+    }
   }
 
   async function newSession() {
@@ -409,6 +514,7 @@ export default function Workspace() {
     setItems([])
     setCost(0)
     setLog([])
+    setIdeas([])
     try {
       await fetch("/api/graph", { method: "DELETE" })
     } catch {
@@ -418,7 +524,19 @@ export default function Workspace() {
   }
 
   return (
-    <div className="flex h-svh flex-col bg-background text-foreground">
+    <div className="relative flex h-svh bg-background text-foreground">
+      <Rail
+        onNew={newSession}
+        onLibrary={() => setLibraryOpen((o) => !o)}
+        onGuide={() => setGuide(true)}
+        libraryOpen={libraryOpen}
+        rhino={rhino}
+      />
+      {libraryOpen && (
+        <LibraryPanel onLoad={loadStudy} onClose={() => setLibraryOpen(false)} />
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* ── header band ─────────────────────────────────────── */}
       <header className="flex items-center justify-between border-b-2 border-border bg-muted px-3 py-2">
         <div className="flex items-baseline gap-3">
@@ -441,15 +559,9 @@ export default function Workspace() {
             />
             {rhino === null ? "RHINO …" : rhino ? "RHINO ONLINE" : "RHINO OFFLINE"}
           </span>
-          <HeaderButton onClick={() => setGuide(true)}>GUIDE</HeaderButton>
-          <HeaderButton onClick={newSession}>NEW SESSION</HeaderButton>
-          <Link
-            href="/"
-            className="border-2 border-border bg-background px-2 py-0.5 text-[10px] font-bold tracking-widest transition-colors hover:bg-foreground hover:text-background"
-          >
-            ← INDEX
-          </Link>
-          <ThemeDot />
+          <span className="hidden text-[9px] font-bold tracking-widest opacity-40 md:inline">
+            {busy ? `WORKING ${elapsed}S` : "STANDBY"}
+          </span>
         </div>
       </header>
 
@@ -476,7 +588,7 @@ export default function Workspace() {
           <PanelBand n="01" title={hosted ? "CONVERSATION — AUTOMATED PREVIEW" : "CONVERSATION"}>
             {busy && (
               <span className="ml-auto animate-pulse text-[9px] font-bold tracking-widest opacity-60">
-                {activity ?? "WORKING"}…
+                {activity ?? "WORKING"}… {elapsed}S
               </span>
             )}
           </PanelBand>
@@ -499,9 +611,36 @@ export default function Workspace() {
                     ) : (
                       <ToolCard key={it.id} item={it} />
                     )
-                  if (it.kind === "capture") return <CaptureInline key={it.id} item={it} />
+                  if (it.kind === "turn")
+                    return <TurnSummary key={it.id} item={it} />
+                  if (it.kind === "capture")
+                    return (
+                      <CaptureInline
+                        key={it.id}
+                        item={it}
+                        latest={it.id === lastCaptureId}
+                      />
+                    )
                   return <Message key={it.id} item={it} />
                 })}
+                {!busy && ideas.length > 0 && (
+                  <div className="mt-1 animate-[fadeup_.35s_ease-out]">
+                    <p className="mb-1.5 text-[9px] font-bold tracking-widest opacity-50">
+                      WHAT SHOULD WE TRY NEXT?
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {ideas.map((idea) => (
+                        <button
+                          key={idea}
+                          onClick={() => send(idea)}
+                          className="border-2 border-border bg-background px-2.5 py-1.5 text-left text-[11px] font-semibold transition-colors hover:bg-accent hover:text-black"
+                        >
+                          {idea}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -555,7 +694,7 @@ export default function Workspace() {
             <GraphPanel
               refreshKey={graphRefresh}
               onCaptured={addCapture}
-              onLog={hosted ? undefined : setLog}
+              onLog={hosted ? undefined : handleLog}
               staticGraph={hosted ? (hostedGraph ?? emptyGraph("show")) : undefined}
               onBlocked={() => setPopup(true)}
             />
@@ -592,6 +731,8 @@ export default function Workspace() {
         </aside>
       </main>
 
+      </div>
+
       {guide && <Guide rhino={rhino} agent={agent} onClose={dismissGuide} />}
       {popup && <HostedPopup onClose={() => setPopup(false)} />}
     </div>
@@ -617,34 +758,6 @@ function PanelBand({
       <span className="px-2.5 text-[10px] font-bold tracking-widest">{title}</span>
       {children}
     </div>
-  )
-}
-
-function HeaderButton({
-  onClick,
-  children,
-}: {
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="border-2 border-border bg-background px-2 py-0.5 text-[10px] font-bold tracking-widest transition-colors hover:bg-accent hover:text-black"
-    >
-      {children}
-    </button>
-  )
-}
-
-function ThemeDot() {
-  const { resolvedTheme, setTheme } = useTheme()
-  return (
-    <button
-      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="size-3 animate-blink cursor-pointer rounded-full bg-foreground transition-transform hover:scale-110"
-      aria-label="Toggle dark mode"
-    />
   )
 }
 
@@ -869,15 +982,75 @@ function InternalToolLine({ item }: { item: ToolItem }) {
   )
 }
 
-function CaptureInline({ item }: { item: CaptureItem }) {
+function CaptureInline({ item, latest }: { item: CaptureItem; latest?: boolean }) {
   return (
-    <figure className="border-2 border-border">
+    <figure className="animate-[fadeup_.35s_ease-out] border-2 border-border">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={item.url} alt={`Viewport at ${item.time}`} className="w-full" />
-      <figcaption className="border-t-2 border-border bg-muted px-2 py-0.5 text-[9px] font-bold tracking-widest">
-        VIEWPORT · {item.time}
+      <figcaption className="flex items-center gap-2 border-t-2 border-border bg-muted px-2 py-1 text-[9px] font-bold tracking-widest">
+        {item.version ? `V${item.version}` : "VIEWPORT"}
+        {latest && (
+          <span className="bg-accent px-1.5 py-px text-[8px] text-black">LATEST</span>
+        )}
+        <span className="ml-auto opacity-50">{item.time}</span>
       </figcaption>
     </figure>
+  )
+}
+
+/** collapsed record of one agent turn: worked-for header + step checklist */
+function TurnSummary({ item }: { item: TurnItem }) {
+  const [open, setOpen] = React.useState(false)
+  const tag = (name: string, internal: boolean) =>
+    internal ? "setup" : name.startsWith("graph_") ? "graph" : "rhino"
+
+  return (
+    <div className="border-2 border-border bg-background">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left transition-colors hover:bg-secondary/40"
+      >
+        <span className="text-[10px] font-bold tracking-widest">
+          WORKED FOR {item.duration}S
+        </span>
+        <span className="font-mono text-[9px] opacity-50">
+          {item.steps.length} STEPS
+        </span>
+        <span className="ml-auto text-[9px] opacity-40">{open ? "−" : "›"}</span>
+      </button>
+      {open && (
+        <ol className="border-t-2 border-border">
+          {item.steps.map((step, i) => (
+            <li
+              key={i}
+              className="flex items-center gap-2 border-b border-border/20 px-2.5 py-1 last:border-b-0"
+            >
+              <span
+                className={cn(
+                  "grid size-3.5 place-items-center text-[8px] font-bold",
+                  step.status === "error"
+                    ? "bg-accent text-black"
+                    : "bg-foreground text-background"
+                )}
+              >
+                {step.status === "error" ? "✕" : "✓"}
+              </span>
+              <span
+                className={cn(
+                  "px-1 text-[8px] font-bold uppercase tracking-widest",
+                  tag(step.name, step.internal) === "graph"
+                    ? "bg-accent/30"
+                    : "bg-secondary/50"
+                )}
+              >
+                {tag(step.name, step.internal)}
+              </span>
+              <span className="font-mono text-[10px]">{step.name}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   )
 }
 

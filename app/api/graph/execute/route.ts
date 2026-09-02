@@ -49,8 +49,10 @@ export async function POST(req: NextRequest) {
         { ok: false, stage: "rhino-offline", errors: [e.message] },
         { status: 503 }
       )
+    const raw = e instanceof Error ? e.message : String(e)
+    const lastLine = raw.trim().split("\n").filter(Boolean).pop() ?? raw
     return NextResponse.json(
-      { ok: false, stage: "execute", errors: [e instanceof Error ? e.message : String(e)] },
+      { ok: false, stage: "execute", errors: [lastLine] },
       { status: 500 }
     )
   }
