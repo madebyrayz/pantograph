@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import ReactMarkdown from "react-markdown"
 
 /**
@@ -71,7 +72,10 @@ function parsePaper(markdown: string): Paper {
 
 export function Research({ markdown }: { markdown: string }) {
   const [open, setOpen] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
   const paper = React.useMemo(() => parsePaper(markdown), [markdown])
+
+  React.useEffect(() => setMounted(true), [])
 
   React.useEffect(() => {
     if (!open) return
@@ -115,100 +119,104 @@ export function Research({ markdown }: { markdown: string }) {
         </div>
       </div>
 
-      {/* drawer */}
-      {open && (
-        <div className="fixed inset-0 z-50">
-          <button
-            aria-label="Close the article"
-            onClick={() => setOpen(false)}
-            className="absolute inset-0 cursor-default bg-foreground/40"
-          />
-          <aside className="absolute inset-y-0 right-0 flex w-full max-w-[760px] flex-col border-l-2 border-border bg-background">
-            <div className="flex items-center justify-between border-b-2 border-border bg-muted px-4 py-2.5">
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-bold tracking-widest">
-                  {paper.title.toUpperCase()}
-                </p>
-                <p className="text-[9px] font-bold tracking-widest opacity-50">
-                  ESC OR ✕ TO CLOSE · SCROLL TO READ
-                </p>
+      {/* centered reader — portaled to <body> so the scroll-reveal
+          section's transform can't trap the fixed overlay */}
+      {open &&
+        mounted &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+            <button
+              aria-label="Close the article"
+              onClick={() => setOpen(false)}
+              className="absolute inset-0 cursor-default bg-foreground/50"
+            />
+            <div className="relative flex h-[92svh] w-full max-w-[860px] flex-col border-2 border-border bg-background">
+              <div className="flex items-center justify-between border-b-2 border-border bg-muted px-4 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-bold tracking-widest">
+                    {paper.title.toUpperCase()}
+                  </p>
+                  <p className="text-[9px] font-bold tracking-widest opacity-50">
+                    ESC OR ✕ TO CLOSE · SCROLL TO READ
+                  </p>
+                </div>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="shrink-0 border-2 border-border bg-background px-2.5 py-1 text-xs font-bold transition-colors hover:bg-foreground hover:text-background"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="shrink-0 border-2 border-border bg-background px-2.5 py-1 text-xs font-bold transition-colors hover:bg-foreground hover:text-background"
-              >
-                ✕
-              </button>
-            </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <article className="mx-auto flex max-w-[660px] flex-col gap-8 px-4 py-8 sm:px-6">
-                {/* masthead — the landing card, restated */}
-                <header className="border-2 border-border">
-                  <div className="border-b-2 border-border bg-background p-4">
-                    <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-                      {paper.title.toUpperCase()}
-                    </h1>
-                  </div>
-                  <div className="bg-accent p-4">
-                    <p className="text-sm font-bold leading-snug tracking-tight text-black">
-                      {paper.subtitle.toUpperCase()}
-                    </p>
-                  </div>
-                </header>
-
-                {/* sections as Swiss blocks */}
-                {paper.sections.map((s) => (
-                  <section key={s.numeral} className="border-2 border-border">
-                    <div className="flex items-stretch border-b-2 border-border bg-muted">
-                      <span className="flex w-12 shrink-0 items-center justify-center border-r-2 border-border bg-accent text-sm font-bold text-black">
-                        {s.numeral}
-                      </span>
-                      <span className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest">
-                        {s.title}
-                      </span>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <article className="mx-auto flex max-w-[680px] flex-col gap-8 px-4 py-8 sm:px-6">
+                  {/* masthead — the landing card, restated */}
+                  <header className="border-2 border-border">
+                    <div className="border-b-2 border-border bg-background p-4">
+                      <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+                        {paper.title.toUpperCase()}
+                      </h1>
                     </div>
-                    <div className="p-4">
-                      <ReactMarkdown components={MD}>{s.body}</ReactMarkdown>
+                    <div className="bg-accent p-4">
+                      <p className="text-sm font-bold leading-snug tracking-tight text-black">
+                        {paper.subtitle.toUpperCase()}
+                      </p>
                     </div>
-                  </section>
-                ))}
+                  </header>
 
-                {/* sources register */}
-                {paper.sources.length > 0 && (
-                  <section className="border-2 border-border">
-                    <div className="flex items-stretch border-b-2 border-border bg-muted">
-                      <span className="flex w-12 shrink-0 items-center justify-center border-r-2 border-border bg-accent text-sm font-bold text-black">
-                        ※
-                      </span>
-                      <span className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest">
-                        Sources
-                      </span>
-                    </div>
-                    <ol>
-                      {paper.sources.map((src, i) => (
-                        <SourceRow key={i} index={i + 1} entry={src} />
-                      ))}
-                    </ol>
-                  </section>
-                )}
-              </article>
-            </div>
+                  {/* sections as Swiss blocks */}
+                  {paper.sections.map((s) => (
+                    <section key={s.numeral} className="border-2 border-border">
+                      <div className="flex items-stretch border-b-2 border-border bg-muted">
+                        <span className="flex w-12 shrink-0 items-center justify-center border-r-2 border-border bg-accent text-sm font-bold text-black">
+                          {s.numeral}
+                        </span>
+                        <span className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest">
+                          {s.title}
+                        </span>
+                      </div>
+                      <div className="p-4">
+                        <ReactMarkdown components={MD}>{s.body}</ReactMarkdown>
+                      </div>
+                    </section>
+                  ))}
 
-            <div className="flex items-center justify-between border-t-2 border-border bg-muted px-4 py-2">
-              <span className="text-[9px] font-bold tracking-widest opacity-50">
-                © RAY ZHANG — PANTOGRAPH.AI
-              </span>
-              <a
-                href="mailto:info@pantograph.ai?subject=The%20Editable%20Return"
-                className="text-[9px] font-bold tracking-widest underline underline-offset-2 hover:opacity-60"
-              >
-                DISCUSS BY EMAIL →
-              </a>
+                  {/* sources register */}
+                  {paper.sources.length > 0 && (
+                    <section className="border-2 border-border">
+                      <div className="flex items-stretch border-b-2 border-border bg-muted">
+                        <span className="flex w-12 shrink-0 items-center justify-center border-r-2 border-border bg-accent text-sm font-bold text-black">
+                          ※
+                        </span>
+                        <span className="px-3 py-2 text-[11px] font-bold uppercase tracking-widest">
+                          Sources
+                        </span>
+                      </div>
+                      <ol>
+                        {paper.sources.map((src, i) => (
+                          <SourceRow key={i} index={i + 1} entry={src} />
+                        ))}
+                      </ol>
+                    </section>
+                  )}
+                </article>
+              </div>
+
+              <div className="flex items-center justify-between border-t-2 border-border bg-muted px-4 py-2">
+                <span className="text-[9px] font-bold tracking-widest opacity-50">
+                  © RAY ZHANG — PANTOGRAPH.AI
+                </span>
+                <a
+                  href="mailto:info@pantograph.ai?subject=The%20Editable%20Return"
+                  className="text-[9px] font-bold tracking-widest underline underline-offset-2 hover:opacity-60"
+                >
+                  DISCUSS BY EMAIL →
+                </a>
+              </div>
             </div>
-          </aside>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
